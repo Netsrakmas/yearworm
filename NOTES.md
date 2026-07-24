@@ -73,8 +73,8 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
-- **Top 10 Hits deck** (4.28.0 — LIVE, Sam: deck of per-year chart hits known in
-  NL): new `TOP10_SONGS` (147 curated, year-accurate, 1965–2024) — international
+- **Top 10 Hits deck** (4.28.0 → GROWN in 4.28.1 to ~10/JAAR: 656 songs, 1957–
+  2024, 67 years; pool 2029→2170): new `TOP10_SONGS` (curated, year-accurate, 1965–2024) — international
   toppers + NL staples (Golden Earring, Shocking Blue, Focus, George Baker, 2
   Unlimited, Vengaboys, Alice Deejay, Anouk). Added to the pool (add-loop) AND as
   a 6th PICKABLE deck `{id:"top10", name:"Top 10 Hits", 🏆}`; DECKS.splice(5)→(6).
@@ -83,6 +83,14 @@ preview clips** instead of Spotify.
   scores skew higher — accept for now). Feel It carries the radio-edit q. Years
   are hand-picked but UNVERIFIED against a chart DB — Sam/report-tool can correct;
   q-override handy for bad clips. runmode/leaderboard/survival green.
+  4.28.1 QUALITY GATES (scratchpad/top10_build.py + top10chk.js + align.js):
+  (a) 0 internal dupes (core title|primary-artist key); (b) 53 songs had a
+  DIFFERENT year in another curated deck (release-vs-chart-peak) — all aligned
+  to the EXISTING curated year so one song = one answer app-wide (never let the
+  same track carry two years; challenge links + dailies index the pool);
+  (c) revival traps deliberately dated to ORIGINAL release: Kate Bush "Running
+  Up That Hill" 1985 (not the 2022 Stranger Things peak), Taylor Swift "Cruel
+  Summer" 2019 (not 2023). Years remain hand-curated, not chart-DB verified.
 - **Better clip selection** (4.27.1 — LIVE, Sam: Tamperer "Feel It" played the
   wrong version, radio edit is a better clip): pickBest gains (1) LONGVER
   penalty (extended/club mix/12"/dub/megamix — their 30s preview is usually an
