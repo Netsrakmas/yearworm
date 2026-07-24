@@ -73,6 +73,12 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **Survival year-report** (4.28.2 — LIVE, Sam): survival's reveal built `extra`
+  as hearts ONLY, so it was the one mode without the 🚩 wrong-year block (turbo/
+  daily/challenge/classic all had it) — and it's the most-replayed mode, i.e.
+  where bad years surface first. Now hearts + flagBlock. report.js gained a
+  survival section (asserts BOTH hearts and .report-yr) so no mode can silently
+  lose the control again.
 - **Top 10 Hits deck** (4.28.0 → GROWN in 4.28.1 to ~10/JAAR: 656 songs, 1957–
   2024, 67 years; pool 2029→2170): new `TOP10_SONGS` (curated, year-accurate, 1965–2024) — international
   toppers + NL staples (Golden Earring, Shocking Blue, Focus, George Baker, 2

@@ -76,5 +76,21 @@ const server = http.createServer((req,res)=>{
   const toast = await pg.$eval('body', e=>e.innerText);
   if(!/Reported — thanks/.test(toast)) throw new Error('thank-you toast missing');
   console.log('report flow: button visible, POST to formResponse with all 5 entry ids + old/new year + build ✓');
+
+  // EVERY mode's reveal must offer the year-report control — survival shipped
+  // without it (hearts replaced the flag block) and it's the most-replayed mode
+  await pg.evaluate(()=>{ closeOverlay(); backToSetup(); goTab('play'); });
+  await pg.waitForTimeout(400);
+  await pg.click('.modecard:has-text("Survival")');
+  await pg.click('text=🎯 Start survival');
+  await pg.waitForSelector('.slot.active',{timeout:20000});
+  await pg.click('.slot.active');
+  await pg.waitForSelector('#overlay.show',{timeout:5000});
+  const sReveal = await pg.$eval('#sheet', e=>e.innerHTML);
+  if(!/report-yr/.test(sReveal)) throw new Error('survival reveal is missing the year-report block');
+  if(!/❤️|🖤/u.test(sReveal)) throw new Error('survival reveal lost its hearts');
+  await pg.click('.report-yr summary');
+  if(!await pg.$('#sheet .rev-yr')) throw new Error('survival year input not reachable');
+  console.log('survival reveal: hearts + year-report block present ✓');
   await browser.close(); server.close();
 })().catch(e=>{console.error('FAIL:',e.message);process.exit(1);});
