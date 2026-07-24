@@ -73,6 +73,16 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **Top 10 Hits deck** (4.28.0 — LIVE, Sam: deck of per-year chart hits known in
+  NL): new `TOP10_SONGS` (147 curated, year-accurate, 1965–2024) — international
+  toppers + NL staples (Golden Earring, Shocking Blue, Focus, George Baker, 2
+  Unlimited, Vengaboys, Alice Deejay, Anouk). Added to the pool (add-loop) AND as
+  a 6th PICKABLE deck `{id:"top10", name:"Top 10 Hits", 🏆}`; DECKS.splice(5)→(6).
+  Pool 2029→2044 (15 net new), 0 near-dupes. It's a built-in ⇒ standardDecksOnly
+  true ⇒ counts toward survival boards (note: it's easier than Every Era, so
+  scores skew higher — accept for now). Feel It carries the radio-edit q. Years
+  are hand-picked but UNVERIFIED against a chart DB — Sam/report-tool can correct;
+  q-override handy for bad clips. runmode/leaderboard/survival green.
 - **Better clip selection** (4.27.1 — LIVE, Sam: Tamperer "Feel It" played the
   wrong version, radio edit is a better clip): pickBest gains (1) LONGVER
   penalty (extended/club mix/12"/dub/megamix — their 30s preview is usually an
