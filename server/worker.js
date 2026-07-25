@@ -151,7 +151,12 @@ async function vapidAuthHeader(endpoint, env){
   const sig = new Uint8Array(await crypto.subtle.sign({ name:"ECDSA", hash:"SHA-256" }, key, PUSH_ENC.encode(signingInput)));
   return "vapid t=" + signingInput + "." + bytesToB64u(sig) + ", k=" + env.VAPID_PUBLIC;
 }
-// send one push; returns "gone" if the subscription is dead (404/410) so we can prune it
+// send one push; returns the push service's HTTP status. 404/410 = the
+// subscription is dead and should be pruned; 403 = it was created with a
+// DIFFERENT VAPID public key than the one we sign with (i.e. it predates a key
+// rotation) and can never receive our pushes again — also unusable. Callers use
+// pushDead() rather than testing statuses by hand.
+const pushDead = st => st === 404 || st === 410 || st === 403;
 async function sendWebPush(env, sub, payloadStr){
   const body = await pushEncrypt(sub.p256dh, sub.auth, payloadStr);
   const r = await fetch(sub.endpoint, { method:"POST", headers:{
@@ -160,7 +165,7 @@ async function sendWebPush(env, sub, payloadStr){
     "Content-Type": "application/octet-stream",
     "TTL": "86400",
   }, body });
-  return (r.status === 404 || r.status === 410) ? "gone" : "ok";
+  return r.status;
 }
 // non-secret diagnostic for /health: are the VAPID keys present, and do the
 // private (secret) and public (advertised in the app) form a MATCHING pair?
@@ -184,7 +189,7 @@ async function pushToUser(env, userId, payloadObj){
     const subs = ((await env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subs WHERE user_id=?1 LIMIT 20").bind(userId).all()).results) || [];
     const payload = JSON.stringify(payloadObj);
     for(const s of subs){
-      try{ if(await sendWebPush(env, s, payload) === "gone")
+      try{ if(pushDead(await sendWebPush(env, s, payload)))
         await env.DB.prepare("DELETE FROM push_subs WHERE endpoint=?1").bind(s.endpoint).run(); }
       catch(e){ /* one dead endpoint shouldn't stop the rest */ }
     }
@@ -526,6 +531,30 @@ async function handleSocialPost(env, b, cors, ctx){
     return json({ ok: true }, 200, cors);
   }
 
+  // Self-test: push to your OWN devices and report exactly what the push
+  // service said. An iPhone has no devtools, so without this a failure is
+  // indistinguishable from "nothing happened" — this turns it into a status
+  // code the player can read out (403 = stale key, 410 = expired sub, 201 = ok).
+  if(action === "push-test"){
+    const v = await vapidStatus(env);
+    if(!v.configured || !v.match) return json({ ok:false, vapid:v, subs:0, sent:[] }, 200, cors);
+    let subs = [];
+    try{ subs = ((await env.DB.prepare("SELECT endpoint, p256dh, auth FROM push_subs WHERE user_id=?1 LIMIT 20")
+      .bind(me.id).all()).results) || []; }catch(e){}
+    const sent = [];
+    for(const s of subs){
+      let st = 0;
+      try{ st = await sendWebPush(env, s, JSON.stringify({ title:"Yearworm test 🔔",
+        body:"Notifications work on this device.", tag:"test", tab:"profile" })); }
+      catch(e){ st = -1; }
+      if(pushDead(st)) try{ await env.DB.prepare("DELETE FROM push_subs WHERE endpoint=?1").bind(s.endpoint).run(); }catch(e){}
+      // the host alone (no token) identifies WHICH push service answered
+      let host = "?"; try{ host = new URL(s.endpoint).host; }catch(e){}
+      sent.push({ status: st, host });
+    }
+    return json({ ok: sent.some(x => x.status >= 200 && x.status < 300), vapid: v, subs: subs.length, sent }, 200, cors);
+  }
+
   if(action === "push-unsub"){
     // delete by endpoint alone: presenting the (unguessable) endpoint proves you
     // hold the device. Matching user_id too would strand rows after an account
@@ -748,7 +777,7 @@ export default {
       ctx.waitUntil((async () => { try{
         const payload = JSON.stringify({ title: "🔥 Your " + info.streak + "-day streak is on the line",
           body: "Today's daily is still open — keep it alive!", tab: "play" });
-        if(await sendWebPush(env, s, payload) === "gone")
+        if(pushDead(await sendWebPush(env, s, payload)))
           await env.DB.prepare("DELETE FROM push_subs WHERE endpoint=?1").bind(s.endpoint).run();
       }catch(e){} })());
     }

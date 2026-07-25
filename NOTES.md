@@ -73,6 +73,32 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **Push on iPhone: diagnosable + rotation-proof** (4.31.0 — LIVE, Sam: works on
+  the iPad, not the iPhone). An iPhone has no devtools, so "it doesn't work" was
+  unfalsifiable. Three separate causes, all now handled:
+  1. **A VAPID rotation kills every existing subscription.** A subscription is
+     permanently bound to the applicationServerKey it was created with, so after
+     the key swap the push service answers our correctly-signed requests with
+     **403** — silently, while the toggle still reads "On". `enablePush` reused
+     `getSubscription()` unconditionally, so turning it off and on didn't even
+     fix it. Now: `tl_pushkey` records the key we subscribed with (`sub.options`
+     is the direct check but Safari doesn't expose it), `subMatchesKey()` detects
+     the drift, and `healPushKey()` runs 3s after boot to unsub + re-subscribe
+     without the player touching anything. Server side, **403 now counts as dead**
+     (`pushDead()`) so stale rows get pruned instead of retried forever.
+  2. **iOS only exposes push to Home-Screen web apps.** In a Safari tab
+     `window.Notification` is simply absent → `pushSupported()` false → we
+     *hid the whole Notifications card*, which reads as "the feature vanished".
+     The card now always renders and explains what to do: Add to Home Screen, or
+     (in a WhatsApp/Instagram webview, which can't install at all) open it in
+     Safari first. `isIOS()/isInstalled()/isInApp()` + `pushBlockReason()`.
+  3. **No way to test.** New `action:"push-test"` pushes to your own devices and
+     returns `{ok, vapid:{configured,match}, subs, sent:[{status,host}]}`; the
+     profile card has a **Send test** button that turns the raw status into an
+     instruction (403 → off/on, 410 → off/on, no match → server secret is wrong).
+     Only the endpoint HOST is returned — the endpoint itself is a bearer secret.
+  Tests: push.js §4–6 (403 explained, boot heal re-subscribes, iOS tab keeps the
+  card), worker-push-test push-test block (delivery, 403 prune, unconfigured).
 - **Rate-limit resilience** (4.30.0 — LIVE, Sam's iPhone tester): an iPhone
   opening the site from WhatsApp's in-app browser got "Couldn't load today's
   songs" on EVERY daily tap. Root cause: Apple's Search API limit is per

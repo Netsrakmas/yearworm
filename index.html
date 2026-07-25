@@ -488,13 +488,15 @@
 
 <script>
 "use strict";
-const BUILD = "4.30.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.31.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    // re-subscribe devices whose push subscription predates a VAPID rotation
+    setTimeout(()=>{ try{ healPushKey(); }catch(e){} }, 3000);
   });
   // a tapped notification asks us to open a specific tab. If a game is on
   // screen (no .tabbar = not in the lobby), DON'T repaint over it — runs are
@@ -519,8 +521,26 @@ const VAPID_PUBLIC = "BMjZSG0qf5xGGWcAadUijl9M6eDaEbIWf1nIkvXwcuCm1Fad0F7uf3uQhM
 function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window) && (typeof Notification !== 'undefined'); }
 function pushEnabled(){ return pushSupported() && Notification.permission === 'granted' && store.get('tl_push') === '1'; }
 function urlB64ToU8(b64){ const pad='='.repeat((4-b64.length%4)%4); const s=(b64+pad).replace(/-/g,'+').replace(/_/g,'/'); const raw=atob(s); const o=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++)o[i]=raw.charCodeAt(i); return o; }
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));   // iPadOS 13+ lies about being a Mac
+const isInstalled = () => window.navigator.standalone === true ||
+  (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+// an in-app webview (WhatsApp, Instagram, Facebook) can't install to the Home
+// Screen at all, so "add it first" would be advice the player cannot follow
+const isInApp = () => /FBAN|FBAV|Instagram|Line\/|MicroMessenger/.test(navigator.userAgent) ||
+  (isIOS() && !isInstalled() && !/Safari/.test(navigator.userAgent));
+// WHY notifications are unavailable, in words the player can act on. iOS only
+// exposes Notification/PushManager to web apps launched from the Home Screen —
+// in a Safari tab the API is simply absent, which is indistinguishable from
+// "unsupported device" unless we say so.
+function pushBlockReason(){
+  if(pushSupported()) return "";
+  if(isInApp()) return "Open playyearworm.com in Safari or Chrome — notifications don't work inside another app's browser.";
+  if(isIOS() && !isInstalled()) return "On iPhone & iPad, notifications only work once Yearworm is on your Home Screen: tap Share → Add to Home Screen, then open it from that icon.";
+  return "This browser doesn't support notifications.";
+}
 async function enablePush(){
-  if(!pushSupported()){ toast("Notifications aren't supported on this device"); return; }
+  if(!pushSupported()){ toast(pushBlockReason()); return; }
   if(!loadProfile()){ toast("Claim a name first — then turn on notifications"); goTab("friends"); return; }
   let perm = Notification.permission;
   if(perm === 'default') perm = await Notification.requestPermission();
@@ -528,12 +548,70 @@ async function enablePush(){
   try{
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+    if(sub && !subMatchesKey(sub)) sub = await dropStaleSub(reg, sub);
     if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToU8(VAPID_PUBLIC) });
     const r = await socialPost({ action:'push-sub', sub: sub.toJSON(), tz: -new Date().getTimezoneOffset() });
-    if(r && r.ok && r.body && r.body.ok){ store.set('tl_push','1'); toast("Notifications on 🔔"); }
+    if(r && r.ok && r.body && r.body.ok){ store.set('tl_push','1'); store.set('tl_pushkey', VAPID_PUBLIC); toast("Notifications on 🔔"); }
     else toast("Couldn't turn on notifications — try again in a moment");
   }catch(e){ toast("Couldn't turn on notifications"); }
   if(_tab === 'profile') renderSetup();
+}
+// A subscription is permanently bound to the VAPID public key it was created
+// with. Rotate the keypair (we did, after the repo cleanup) and every existing
+// subscription starts rejecting our correctly-signed pushes with 403 — silently,
+// while the toggle still reads "On". Remember which key we subscribed with so we
+// can tell; `sub.options` is the direct check but Safari doesn't expose it.
+function subMatchesKey(sub){
+  try{
+    const k = sub && sub.options && sub.options.applicationServerKey;
+    if(k){
+      const a = new Uint8Array(k), b = urlB64ToU8(VAPID_PUBLIC);
+      return a.length === b.length && a.every((v,i) => v === b[i]);
+    }
+  }catch(e){}
+  return store.get('tl_pushkey') === VAPID_PUBLIC;
+}
+async function dropStaleSub(reg, sub){
+  try{ await socialPost({ action:'push-unsub', endpoint: sub.endpoint }); }catch(e){}
+  try{ await sub.unsubscribe(); }catch(e){}
+  return null;
+}
+// Heal devices that turned notifications on BEFORE the rotation without making
+// them find the toggle: on boot, quietly re-subscribe if the key moved.
+async function healPushKey(){
+  if(!pushEnabled() || store.get('tl_pushkey') === VAPID_PUBLIC) return;
+  try{
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(sub){ if(subMatchesKey(sub)){ store.set('tl_pushkey', VAPID_PUBLIC); return; } sub = await dropStaleSub(reg, sub); }
+    sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToU8(VAPID_PUBLIC) });
+    const r = await socialPost({ action:'push-sub', sub: sub.toJSON(), tz: -new Date().getTimezoneOffset() });
+    if(r && r.ok && r.body && r.body.ok) store.set('tl_pushkey', VAPID_PUBLIC);
+  }catch(e){}
+}
+// Ask the server to push to this account right now and report what the push
+// service answered. The only way to diagnose an iPhone, which has no devtools.
+async function testPush(){
+  const btn = document.getElementById('pushTestBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  const done = msg => { const o = document.getElementById('pushTestOut'); if(o){ o.style.display='block'; o.textContent = msg; }
+    if(btn){ btn.disabled = false; btn.textContent = 'Send test'; } };
+  if(!pushEnabled()){ done("Turn notifications on first."); return; }
+  let sub = null;
+  try{ sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription(); }catch(e){}
+  if(!sub){ done("This device has no subscription — turn notifications off and on again."); return; }
+  if(!subMatchesKey(sub)) await healPushKey();
+  const r = await socialPost({ action:'push-test' });
+  const b = r && r.body;
+  if(!b){ done("No answer from the server — check your connection."); return; }
+  if(!b.vapid || !b.vapid.configured){ done("Server has no notification key configured (VAPID_PRIVATE missing)."); return; }
+  if(!b.vapid.match){ done("Server's private key doesn't match the app's public key — the secret needs updating."); return; }
+  if(!b.subs){ done("The server has no subscription for your account — turn notifications off and on again."); return; }
+  if(b.ok){ done("Sent to "+b.subs+" device"+(b.subs>1?'s':'')+" ✓ — if nothing appears, check iOS Settings → Notifications → Yearworm."); return; }
+  const st = (b.sent && b.sent[0] && b.sent[0].status) || 0;
+  done(st === 403 ? "Rejected (403): this device's subscription predates the current key. Turn notifications off, then on."
+     : st === 410 || st === 404 ? "Expired (410): the subscription was dropped by Apple. Turn notifications off, then on."
+     : "Push service refused it (status "+st+").");
 }
 async function disablePush(){
   try{
@@ -7373,11 +7451,18 @@ function profileTabHTML(){
       <div class="statgrid">${(l=>`${stat(l.games|0,'Games')}${stat(l.cards|0,'Cards placed')}${stat('🔥&#8202;'+(d.streak||0),'Daily streak')}${stat(best.streak||0,'Best streak')}${stat(best.cards||0,'Survival')}${stat(best.turbo||0,'Turbo best')}`)(loadLife())}</div></div>
     ${recentGamesHTML()}
     ${(()=>{ const a=achievementsHTML(); return `<div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">${a.label}</div><div style="height:6px"></div>${a.grid}</div>`; })()}
-    ${pushSupported() ? (()=>{ const on = pushEnabled(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
+    ${(()=>{ const on = pushEnabled(), why = pushBlockReason();
+      // NEVER hide this card: on an iPhone in a Safari tab the push API is
+      // absent, and silently dropping the row makes it look like the feature
+      // vanished instead of telling the player how to get it.
+      return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('bell',1)} Notifications</div>
-        <div class="muted" style="font-size:11.5px; margin-top:2px">${on ? 'On — challenges, new friends & plays' : 'Get pinged when a friend challenges you, adds you, or plays your set'}</div></div>
-      <button class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="togglePush()">${on ? 'Turn off' : 'Turn on'}</button>
-    </div></div>`; })() : ``}
+        <div class="muted" style="font-size:11.5px; margin-top:2px">${why ? esc(why) : (on ? 'On — challenges, new friends &amp; plays' : 'Get pinged when a friend challenges you, adds you, or plays your set')}</div></div>
+      ${why ? `` : `<button class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="togglePush()">${on ? 'Turn off' : 'Turn on'}</button>`}
+    </div>${on ? `<div class="row" style="justify-content:space-between; align-items:center; gap:10px; margin-top:10px">
+      <div class="muted" style="font-size:11.5px; min-width:0">Not getting them? Send one to this device.</div>
+      <button id="pushTestBtn" class="btn sm ghost" style="flex:0 0 auto" onclick="testPush()">Send test</button>
+    </div><div id="pushTestOut" class="muted" style="display:none; font-size:11.5px; margin-top:8px; line-height:1.45"></div>` : ``}</div>`; })()}
     ${(()=>{ const on = sfxEnabled(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('vol',1)} Sound effects</div>
         <div class="muted" style="font-size:11.5px; margin-top:2px">${on ? 'On — little dings for placements & finishes' : 'Off — placements are silent'}</div></div>
