@@ -73,6 +73,30 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **Rate-limit resilience** (4.30.0 — LIVE, Sam's iPhone tester): an iPhone
+  opening the site from WhatsApp's in-app browser got "Couldn't load today's
+  songs" on EVERY daily tap. Root cause: Apple's Search API limit is per
+  EGRESS IP (~20/min), and iCloud Private Relay / carrier CGNAT put thousands
+  of devices behind one — so a user who has made zero lookups can still be
+  blocked. Four fixes:
+  1. **Preview cache** `tl_pv` in localStorage (12-day TTL, 900-entry cap,
+     key = `q|title|artist`): `pvGet` short-circuits the lookup entirely, so a
+     returning device barely touches Apple. `onAudioFail` calls `pvDrop(url)`
+     so a rotated/dead clip can't be served forever from cache.
+  2. **3 attempts per song** in `resolveBatch` with jittered backoff
+     (700/1400ms + up to 300ms) — a per-minute window often reopens in-run.
+  3. **JSONP fast-fail**: a rate-limited response is a 403 whose body never
+     calls our callback, so the script LOADS but nothing resolves and we used
+     to sit out the full 9s timeout. `s.onload` → resolve empty after 60ms
+     (a JSONP callback runs during script evaluation, i.e. before onload, so
+     if onload fires with nothing resolved there is no answer coming). One
+     song's 3 attempts: 30090ms → 2722ms.
+  4. **`showError(msg, retryFn)`** renders a "↻ Try again" button; wired into
+     startDaily / startChallenge / startTutorial / onStart. Copy is honest now
+     ("Apple limits how many lookups one network can make") instead of a dead
+     end. NOTE for future timing-sensitive tests: the backoff made two fixed
+     sleeps too short (connection.js §C, oneshot.js §3) — both now wait for
+     the element. New suite `test/ratelimit.js` (5 sections).
 - **Top 10 Hits is the DEFAULT deck** (4.29.0 — LIVE, Sam): DECKS order now
   top10 → everything → classics → thehits → now → party, because boot does
   `S.selectedIds = [DECKS[0].id]`. Default pool 2170 → 656 recognizable

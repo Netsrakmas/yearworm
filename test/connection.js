@@ -69,8 +69,11 @@ const bannerShown = pg => pg.evaluate(()=>{ const el=document.getElementById('ne
   fail = true;
   await pg.click('.modecard:has-text("Pass & Play")');
   await pg.click('text=▶ Start game');
-  await pg.waitForTimeout(1500);
-  if(!await bannerShown(pg)) throw new Error('all-failing start did not surface the banner');
+  // every song is now retried 3x with backoff before its verdict reaches the
+  // watchdog, so on a fully dead API the banner takes a few seconds — wait for
+  // it rather than sampling at a fixed moment
+  await pg.waitForFunction(()=>{const el=document.getElementById('netbanner');return !!el&&el.classList.contains('show');},null,{timeout:20000})
+    .catch(()=>{ throw new Error('all-failing start did not surface the banner'); });
   console.log('all-failing deck load surfaces the banner OK');
   fail = false;
   await pg.evaluate(()=>setNetTrouble(false));

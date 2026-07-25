@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.29.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.30.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6192,9 +6192,14 @@ function itunesSearch(term, limit){
     const s = document.createElement("script");
     let done = false;
     const finish = (results) => { if(done) return; done = true; try{ delete window[cb]; }catch(e){ window[cb]=undefined; } s.remove(); clearTimeout(to); resolve(results||[]); };
-    const to = setTimeout(()=> finish([]), 9000);
+    const to = setTimeout(()=> finish([]), 9000);   // ceiling for genuinely slow networks
     window[cb] = data => finish((data && data.results) || []);
     s.onerror = () => finish([]);
+    // FAST-FAIL on a rate limit: Apple answers 403 with a body that never calls
+    // our callback, so the script LOADS fine and we'd otherwise sit out the full
+    // 9s. A JSONP callback runs during script evaluation — i.e. before onload —
+    // so if onload fires with nothing resolved, there is no answer coming.
+    s.onload = () => { setTimeout(()=> finish([]), 60); };
     s.src = "https://itunes.apple.com/search?media=music&entity=song&limit="+limit
           +"&term="+encodeURIComponent(term)+"&callback="+cb;
     document.head.appendChild(s);
@@ -6310,18 +6315,60 @@ if(typeof window !== "undefined"){
   window.addEventListener("offline", ()=> setNetTrouble(true));
   window.addEventListener("online",  ()=>{ _netFails = 0; setNetTrouble(false); });
 }
+/* resolved-preview cache: Apple's search API rate-limits PER IP, and many
+   iPhones share one egress IP (iCloud Private Relay / carrier CGNAT) — so a
+   burst of lookups can 403 for reasons that have nothing to do with this
+   player. Caching every resolved preview means a returning device barely
+   touches the API at all. Entries expire (URLs rotate) and are dropped when a
+   clip actually fails to play. */
+const PV_CACHE = "tl_pv", PV_TTL = 12 * 864e5, PV_CAP = 900;
+function pvLoad(){ try{ return JSON.parse(store.get(PV_CACHE)||"{}")||{}; }catch(e){ return {}; } }
+function pvKey(sg){ return ((sg.q||"")+"|"+(sg.title||sg.name||"")+"|"+(sg.artist||"")).toLowerCase(); }
+function pvGet(sg){
+  const c = pvLoad()[pvKey(sg)];
+  if(!c || !c.u || (Date.now() - (c.at||0)) > PV_TTL) return null;
+  return { trackId:c.i, previewUrl:c.u, trackViewUrl:c.v||"", trackName:sg.title, artistName:sg.artist };
+}
+function pvPut(sg, hit){
+  if(!hit || !hit.previewUrl) return;
+  try{
+    const c = pvLoad();
+    c[pvKey(sg)] = { u:hit.previewUrl, i:hit.trackId, v:hit.trackViewUrl||"", at:Date.now() };
+    const keys = Object.keys(c);
+    if(keys.length > PV_CAP){                     // trim oldest
+      keys.sort((a,b)=>(c[a].at||0)-(c[b].at||0)).slice(0, keys.length-PV_CAP).forEach(k=>delete c[k]);
+    }
+    store.set(PV_CACHE, JSON.stringify(c));
+  }catch(e){}
+}
+function pvDrop(previewUrl){
+  try{
+    const c = pvLoad(); let hit = false;
+    for(const k of Object.keys(c)) if(c[k].u === previewUrl){ delete c[k]; hit = true; }
+    if(hit) store.set(PV_CACHE, JSON.stringify(c));
+  }catch(e){}
+}
+const napTime = ms => new Promise(r => setTimeout(r, ms));
 async function resolveBatch(slice){
   const hits = await Promise.all(slice.map(async sg => {
+    // cache first: no request at all for songs this device already resolved
+    const cached = pvGet(sg);
+    if(cached){ noteLookup(true); return { sg, hit: cached }; }
     let res = [];
     // sg.q: optional per-song search override to steer Apple toward a specific
     // cut (e.g. "radio edit") when the default artist+title returns a bad clip
     const term = sg.q || (sg.artist+" "+sg.title);
-    try{ res = await itunesSearch(term, 10); }catch(e){}
-    // empty usually means a network hiccup (timeout) on a flaky connection —
-    // one retry recovers it; costs nothing when the first call already worked
-    if(!res.length){ try{ res = await itunesSearch(term, 10); }catch(e){} }
+    // three attempts with BACKOFF + jitter: an immediate retry is useless against
+    // a rate-limit (the window hasn't moved), which is what iPhones behind a
+    // shared egress IP mostly hit
+    for(let attempt = 0; attempt < 3 && !res.length; attempt++){
+      if(attempt) await napTime(attempt * 700 + Math.floor(Math.random()*300));
+      try{ res = await itunesSearch(term, 10); }catch(e){}
+    }
     noteLookup(res.length > 0);   // feed the connection watchdog
-    return { sg, hit: pickBest(res, sg) };
+    const hit = pickBest(res, sg);
+    pvPut(sg, hit);
+    return { sg, hit };
   }));
   let added = 0;
   for(const {sg,hit} of hits){
@@ -6502,6 +6549,7 @@ function onAudioFail(){
   // legitimately-played song out of S.runCards and double-advance the turn
   const ov = document.getElementById("overlay");
   if(ov && ov.classList.contains("show")){ try{ a.pause(); }catch(e){} return; }
+  pvDrop(S.current.previewUrl);   // cached URL went stale — never serve it again
   if(++autoSkips > 6){ autoSkips=0; showError("Several previews wouldn't load — Apple may be rate-limiting. Wait a few seconds, then tap ▶ Play."); return; }
   toast("Couldn't load that clip — skipping.");
   skipTrack();
@@ -6931,9 +6979,16 @@ function toast(msg, sticky){
 }
 function hideToast(){ clearTimeout(toastTimer); const t=document.getElementById("toast"); if(t) t.classList.remove("show"); }
 function closeOverlay(){ document.getElementById("overlay").classList.remove("show"); }
-function showError(msg){
+// retryFn: optional — renders a real "Try again" button instead of leaving the
+// player at a dead end (a rate-limited lookup usually succeeds moments later)
+function showError(msg, retryFn){
   const e=document.getElementById("errbar");
-  e.textContent = "⚠ "+msg+"\n\n(tap to dismiss)";
+  window._errRetry = retryFn || null;
+  e.innerHTML = "⚠ "+esc(msg)
+    + (retryFn ? `<div style="margin-top:12px"><button class="btn sm" style="width:auto; display:inline-block"
+         onclick="event.stopPropagation(); this.disabled=true; this.textContent='Trying…'; document.getElementById('errbar').style.display='none'; const f=window._errRetry; window._errRetry=null; if(f) f();">↻ Try again</button></div>`
+       : "")
+    + `<div class="muted" style="margin-top:10px; font-size:11.5px">(tap anywhere to dismiss)</div>`;
   e.style.display="block";
   window.scrollTo(0,0);
   console.error("[Yearworm]", msg);
@@ -8084,7 +8139,7 @@ async function startTutorial(){
   renderLoading(0, songs.length);
   const got = await resolveInitial(songs, (d,t)=>renderLoading(d,t), ()=> S.deck.length >= 3);
   if(S.deck.length < 2){
-    showError("Couldn't load the intro songs — Apple may be rate-limiting. Try again in a moment.");
+    showError("Couldn't load the intro songs — Apple limits how many lookups one network can make. Give it a few seconds.", startTutorial);
     renderSetup(); return;
   }
   S.used = new Set();
@@ -8143,7 +8198,7 @@ async function startChallenge(){
   const strict = S.challenge.idx.length <= RUN_LEN + 1;
   const got = await resolveInitial(songs, (d,t)=>renderLoading(d,t), ()=> !strict && S.deck.length >= 2);
   if(S.deck.length < (strict ? songs.length : 2)){
-    showError("Couldn't load the challenge songs — Apple may be rate-limiting. Try again in a moment.");
+    showError("Couldn't load the challenge songs — Apple limits how many lookups one network can make. Give it a few seconds.", startChallenge);
     renderSetup(); return;
   }
   S.used = new Set();
@@ -8226,8 +8281,8 @@ async function onStart(){
   const got = await resolveInitial(songs.slice(0, FIRST), (d,t)=>renderLoading(d,t),
     ()=> S.deck.length >= MIN);   // start as soon as the minimum is in — rest streams in below
   if(S.deck.length < 2){
-    showError("Couldn't load playable previews (got "+S.deck.length+"). Apple may be rate-limiting "
-      +"or the network is blocked — wait a few seconds and try again, or pick another deck.");
+    showError("Couldn't load playable previews (got "+S.deck.length+"). Apple limits how many lookups "
+      +"one network can make — give it a few seconds, or pick another deck.", onStart);
     renderSetup();
     return;
   }
@@ -8255,7 +8310,7 @@ async function startDaily(){
   const got = await resolveInitial(songs, (d,t)=>renderLoading(d,t),
     ()=> S.deck.length >= 2);   // anchor + first mystery — rest streams in below
   if(S.deck.length < 2){
-    showError("Couldn't load today's songs — Apple may be rate-limiting. Wait a moment and try again.");
+    showError("Couldn't load today's songs — Apple limits how many lookups one network can make. Give it a few seconds.", startDaily);
     renderSetup();
     return;
   }

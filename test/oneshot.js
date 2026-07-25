@@ -102,7 +102,9 @@ const server = http.createServer((req,res)=>{
   await pg.reload();
   await pg.waitForTimeout(700);
   await pg.click('#sheet button:has-text("Accept challenge")');
-  await pg.waitForTimeout(4000);   // strict resolution fails → error + back to setup
+  // strict resolution fails → error + back to setup. Each song burns 3 retries
+  // with backoff first, so wait for the bar instead of guessing a duration.
+  await pg.waitForSelector('#errbar',{state:'visible',timeout:30000});
   const chals2 = await pg.evaluate(()=>JSON.parse(localStorage.getItem('tl_chals')||'{}'));
   const key2 = await pg.evaluate(k=>chalKey(k), idx2);
   if(chals2[key2]) throw new Error('failed-resolution link must not lock the set: '+JSON.stringify(chals2[key2]));
