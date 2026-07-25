@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.28.2";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.29.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5005,13 +5005,18 @@ const TOP10_SONGS = [
   for(const s of TOP10_SONGS) add(s);
   const pKeys = new Set(PARTY_SONGS.map(key));
   const bucket = (lo,hi) => pool.filter(s => s.year>=lo && s.year<=hi).slice(0,600);
+  // Top 10 Hits leads → it is DECKS[0] and therefore the DEFAULT selection
+  // (boot: S.selectedIds = [DECKS[0].id]). Recognizable per-year chart hits make
+  // the best first impression; Every Era stays one tap away. NB: the daily and
+  // challenge sets are seeded from stablePool() ("everything") by id, so this
+  // ordering never affects them.
   DECKS.unshift(
+    { id:"top10", name:"Top 10 Hits", emoji:"\u{1F3C6}", desc:"NL chart toppers, every year", songs:TOP10_SONGS },
     { id:"everything", name:"Every Era", emoji:"\u{1F30D}", desc:"1955–now", songs:pool },
     { id:"classics", name:"The Classics", emoji:"\u{1F3DB}\uFE0F", desc:"1950s\u20131989", songs:bucket(0,1989) },
     { id:"thehits", name:"The Hits", emoji:"\u2728", desc:"1990\u20132009", songs:bucket(1990,2009) },
     { id:"now", name:"Now", emoji:"\u26A1", desc:"2010\u2013now", songs:bucket(2010,9999) },
     { id:"party", name:"Party Anthems", emoji:"\u{1F389}", desc:"dance floor", songs:pool.filter(s=>pKeys.has(key(s))).slice(0,600) },
-    { id:"top10", name:"Top 10 Hits", emoji:"\u{1F3C6}", desc:"NL chart toppers, every era", songs:TOP10_SONGS },
   );
   DECKS.splice(6);   // launch: show only these five decks; the themed songs remain in the pool above
 })();

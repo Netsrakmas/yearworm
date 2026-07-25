@@ -73,6 +73,15 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **Top 10 Hits is the DEFAULT deck** (4.29.0 — LIVE, Sam): DECKS order now
+  top10 → everything → classics → thehits → now → party, because boot does
+  `S.selectedIds = [DECKS[0].id]`. Default pool 2170 → 656 recognizable
+  per-year hits (better first impression; Every Era one tap away). SAFE because
+  daily/challenge/tut seed from `stablePool()` which finds "everything" BY ID —
+  verified: stablePool still 2170, dailySongs() unchanged. top10 stays a
+  built-in ⇒ standardDecksOnly ⇒ survival scores still count (they'll skew
+  higher on an easier deck — accepted). Deck selection is NOT persisted, so
+  every session starts on top10. Full suite green (8 suites).
 - **Survival year-report** (4.28.2 — LIVE, Sam): survival's reveal built `extra`
   as hearts ONLY, so it was the one mode without the 🚩 wrong-year block (turbo/
   daily/challenge/classic all had it) — and it's the most-replayed mode, i.e.
