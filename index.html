@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.31.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.32.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5532,6 +5532,42 @@ async function addFriendCode(v){
   renderFriendsCard(r.body);
   toast((r.body.friends||[]).length ? "Added! ⚔️" : "Request sent — they'll see it next time they open the game.");
 }
+// Search players by name. Debounced so every keystroke isn't a round trip, and
+// serialised by a token so a slow early reply can't overwrite a newer one.
+let _findT = null, _findSeq = 0;
+function findPlayers(q, now){
+  const out = document.getElementById("findOut");
+  q = (q || "").trim();
+  clearTimeout(_findT);
+  if(q.length < 2){ if(out) out.innerHTML = ""; return; }
+  const seq = ++_findSeq;
+  const go = async () => {
+    const r = await socialPost({ action:"find", q });
+    if(seq !== _findSeq) return;                     // a newer search already ran
+    const el = document.getElementById("findOut"); if(!el) return;
+    const res = (r && r.ok && r.body && r.body.results) || [];
+    el.innerHTML = res.length ? res.map(p => `<div class="row" style="justify-content:space-between; align-items:center; gap:8px; margin-top:7px">
+        <span style="display:inline-flex; gap:9px; align-items:center; min-width:0">
+          <span class="avatar" aria-hidden="true">${avatarFor(p.avatar, p.handle)}</span>
+          <b style="font-size:13.5px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(p.handle)}</b>
+        </span>
+        ${p.rel === "friend" ? `<span class="muted" style="font-size:12px; flex:0 0 auto">✓ friends</span>`
+        : p.rel === "sent" ? `<span class="muted" style="font-size:12px; flex:0 0 auto">⏳ asked</span>`
+        : `<button class="btn sm ${p.rel === "incoming" ? "primary" : ""}" style="flex:0 0 auto" onclick="requestFriend('${p.id}','${esc(p.handle)}')" aria-label="${p.rel === "incoming" ? "Accept" : "Add"} ${esc(p.handle)}">${p.rel === "incoming" ? "✓ Accept" : "+ Add"}</button>`}
+      </div>`).join("")
+      : `<div class="muted" style="font-size:12.5px; margin-top:6px">No player called “${esc(q)}” — names must match from the start.</div>`;
+  };
+  now ? go() : (_findT = setTimeout(go, 300));
+}
+// A shared CODE is consent, so add-by-code links instantly. A name someone typed
+// is not, so this only ever asks — they have to accept.
+async function requestFriend(id, handle){
+  const r = await socialPost({ action:"request", user:id });
+  if(!r || !r.ok){ toast(r && r.status === 404 ? "That player is gone." : "Couldn't send that request."); return; }
+  renderFriendsCard(r.body);
+  const now = (r.body.friends || []).some(f => f.id === id);
+  toast(now ? "You're friends ⚔️" : "Asked " + handle + " — they'll see it next time they play.");
+}
 async function acceptFriend(id){ const r = await socialPost({ action:"accept", user:id }); if(r && r.ok) renderFriendsCard(r.body); }
 async function declineFriend(id){ const r = await socialPost({ action:"decline", user:id }); if(r && r.ok) renderFriendsCard(r.body); }
 function shareCode(){
@@ -6164,7 +6200,13 @@ function friendsCardHTML(st){
         </div>`;}).join("")
       : `<div class="muted" style="font-size:13.5px; margin-top:10px">No friends yet — send someone your invite link. One tap and you're linked ⚔️</div>
       <button class="btn pink" style="margin-top:10px" onclick="shareCode()">${ico('share',1)} Invite a friend</button>`}
-      <div class="muted" style="font-size:12px; margin-top:${fr.length ? 11 : 12}px">Got a friend's code? Add it here:</div>
+      <div class="muted" style="font-size:12px; margin-top:${fr.length ? 11 : 12}px">Search for a player by name:</div>
+      <div class="row" style="gap:8px; margin-top:7px">
+        <input id="findIn" maxlength="20" placeholder="their player name" style="flex:1" aria-label="Search players by name"
+          oninput="findPlayers(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();findPlayers(this.value,1);}" />
+      </div>
+      <div id="findOut" style="margin-top:6px"></div>
+      <div class="muted" style="font-size:12px; margin-top:11px">Or add a friend's code:</div>
       <div class="row" style="gap:8px; margin-top:7px">
         <input id="codeIn" maxlength="9" placeholder="YW-XXXXXX" style="flex:1; text-transform:uppercase" aria-label="Friend code" />
         <button class="btn sm" style="flex:0 0 auto" onclick="addFriendCode(document.getElementById('codeIn').value)">+ Add</button>
@@ -7291,10 +7333,47 @@ function ranksFriendsRows(){
       <span style="color:${col}; flex:0 0 auto">${any?`${w>l?'👑 ':''}you ${w}–${l}${t?` +${t}`:''}`:'—'}</span></div>`;
   }).join("");
 }
-// survival bests among friends: unlimited-attempt scores are only meaningful
-// among people who know each other — the world gets no all-time grind board
-// survival board for a time window: key = 's7' (rolling 7 days) or 'sday' (today).
-// "me" row is tappable → WhatsApp taunt to beat the run.
+async function lbFetchSurv(win){
+  if(!LB.url) return null;
+  try{ const r = await fetch(LB.url+"/sboard", { method:"POST", headers:{ "content-type":"application/json" },
+    body: JSON.stringify({ win, device: deviceId() }) }); return r.ok ? await r.json() : null; }catch(e){ return null; }
+}
+// WORLD survival board for a window. Windowed, never all-time: survival has
+// unlimited attempts, so an all-time world board just crowns whoever grinds
+// longest. A day/week window resets the race and keeps a 5-player game alive —
+// which a friends-only board can't, because most players have no friends yet.
+function ranksSurvWorldHTML(b, emptyMsg){
+  if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:13.5px">${esc(emptyMsg)}</div>`;
+  const meRank = b.me && b.me.rank;
+  const rows = b.top.slice(0,10).map((t,i)=>{
+    const rank = i+1, top3 = rank<=3, mine = b.me && t.nick===b.me.nick && rank===meRank;
+    return `<div class="row" style="align-items:center; gap:8px; padding:7px 2px; ${i?'border-top:1px solid var(--line)':''}" ${mine?`role="button" tabindex="0" onclick="shareSurvival(${t.score})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="cursor:pointer" aria-label="Share your survival run"`:''}>
+      <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
+      <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
+      <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
+      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}${mine?` ${ico('share',1)}`:''}</span></div>`;
+  }).join("");
+  // outside the top 10 you'd otherwise never see yourself — and your own rank is
+  // the whole reason to open this tab
+  const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:7px 2px; border-top:1px solid var(--line); margin-top:4px; cursor:pointer" role="button" tabindex="0" onclick="shareSurvival(${b.me.score})" aria-label="Share your survival run">
+      <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>
+      <span class="avatar sm me" aria-hidden="true">${myAvatar()}</span>
+      <b style="flex:1; color:var(--gold)">You</b><span style="font-family:var(--mono); font-size:13px">${b.me.score} ${ico('share',1)}</span></div>` : ``;
+  const head = `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} player${b.total===1?'':'s'} ${b.win===7?'this week':'today'}${b.me?` · you're #${meRank}`:''}</div>`;
+  return head + rows + meLine;
+}
+// The friends survival card only earns its space once you HAVE friends who
+// play — but it lives in a wrapper that is always in the DOM, so the late
+// socialGet can fill it in without the card being missing on a cold load.
+function ranksSurvFriendsCard(){
+  const fr = (_social && _social.friends) || [];
+  if(!fr.some(f => (f.s7|0) > 0)) return ``;
+  return `<div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · friends · this week</div>
+      <div style="height:8px"></div>${ranksSurvivalRows('s7', 'No survival runs among your friends this week.')}</div>`;
+}
+// survival bests among FRIENDS: key = 's7' (rolling 7 days) or 'sday' (today).
+// Kept alongside the world board — a small board of people you know beats a big
+// board of strangers once you actually have friends. "me" row taunts on tap.
 function ranksSurvivalRows(key, emptyMsg){
   const meVal = (_social && _social.me && (_social.me[key]|0)) || 0;
   const rows = ((_social && _social.friends) || []).map(f => ({ f, handle: f.handle, best: f[key]|0 }));
@@ -7317,10 +7396,11 @@ function ranksTabHTML(){
     <div class="screenhd" style="margin-top:14px"><h2>Ranks</h2></div>
     <div class="card"><div class="eyebrow" style="color:var(--gold); margin-top:0">🌍 today's daily · worldwide</div>
       <div id="ranksDaily" style="margin-top:10px"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play the daily to join the worldwide board.'}</div></div></div>
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · this week</div>
-      <div style="height:8px"></div><div id="ranksSurv7">${ranksSurvivalRows('s7', 'Play Survival this week and your best lands here for friends to chase.')}</div></div>
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · today</div>
-      <div style="height:8px"></div><div id="ranksSurvDay">${ranksSurvivalRows('sday', 'No survival runs yet today — be the first.')}</div></div>
+    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · this week · worldwide</div>
+      <div style="height:8px"></div><div id="ranksSurv7"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div></div>
+    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · today · worldwide</div>
+      <div style="height:8px"></div><div id="ranksSurvDay"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div></div>
+    <div id="ranksSurvFrWrap">${ranksSurvFriendsCard()}</div>
     <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:var(--cyan); margin-top:0">${ico('swords',1)} friends standings</div>
       <div style="height:8px"></div><div id="ranksFriends">${ranksFriendsRows()}</div></div>`;
 }
@@ -7482,15 +7562,20 @@ function afterLobby(tab){
     chalNews();
   }
   if(tab === "friends"){ chalNews(); renderFriendsCard(_social); }
-  if(tab === "ranks" && LB.url){ lbFetchDaily().then(b=>{ const el=document.getElementById("ranksDaily"); if(el) el.innerHTML = ranksBoardHTML(b); }); }
+  if(tab === "ranks" && LB.url){
+    lbFetchDaily().then(b=>{ const el=document.getElementById("ranksDaily"); if(el) el.innerHTML = ranksBoardHTML(b); });
+    lbFetchSurv(7).then(b=>{ const el=document.getElementById("ranksSurv7"); if(el) el.innerHTML = ranksSurvWorldHTML(b, 'No survival runs this week yet — be the first.'); });
+    lbFetchSurv(1).then(b=>{ const el=document.getElementById("ranksSurvDay"); if(el) el.innerHTML = ranksSurvWorldHTML(b, 'No survival runs yet today — be the first.'); });
+  }
   if(tab === "profile"){ const c=document.getElementById("friendsCode"); if(c && loadProfile()) c.innerHTML = `<button class="btn ghost sm" onclick="shareCode()" aria-label="Share your friend code">code <b style="font-family:var(--mono)">${esc((loadProfile()||{}).code||"")}</b> ${ico('share',1)}</button>`; mountGoogleBtn(); }
   if(LB.url) socialGet().then(st => { if(st){ tryPendingAdd(st);
     if(_tab==="friends"){ renderFriendsCard(st);
       const fc=document.getElementById("feedCard"); if(fc) fc.innerHTML = feedCardHTML(); }
     // fresh social state landed: refresh the ranks standings in place too
+    // the WORLD survival boards come from /sboard, not from social state — only
+    // the friends card is refreshed here, or a late socialGet would wipe them
     if(_tab==="ranks"){ const rf=document.getElementById("ranksFriends"); if(rf) rf.innerHTML = ranksFriendsRows();
-      const r7=document.getElementById("ranksSurv7"); if(r7) r7.innerHTML = ranksSurvivalRows('s7', 'Play Survival this week and your best lands here for friends to chase.');
-      const rd=document.getElementById("ranksSurvDay"); if(rd) rd.innerHTML = ranksSurvivalRows('sday', 'No survival runs yet today — be the first.'); }
+      const sf=document.getElementById("ranksSurvFrWrap"); if(sf) sf.innerHTML = ranksSurvFriendsCard(); }
     // refresh the nav badge without a full re-render
     const bar=document.querySelector(".tabbar"); if(bar && _playScreen==null) bar.outerHTML = navHTML(_tab);
     checkAchievements();   // friend/duel achievements depend on fresh social state

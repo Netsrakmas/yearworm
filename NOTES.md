@@ -73,6 +73,33 @@ preview clips** instead of Spotify.
   CF-Connecting-IP), uichrome §5b (record on standard, custom-deck immune, POST
   carries sbest, ranked render, detail line). Future hook: push when a friend
   beats your best.
+- **World survival boards + find players by name** (4.32.0 — LIVE, Sam: "met
+  weinig spelers is het beter om de survival leaderboards voor iedereen te doen").
+  He's right, and it reverses the 4.21.0 call — but only partly, and the original
+  objection still holds where it applied. 4.21.0 refused a world **all-time**
+  board: unlimited attempts + client-submitted scores = whoever grinds longest
+  wins forever. A **windowed** board has no such problem — today and the rolling
+  7 days both reset, so a grind buys you one day. New `/sboard?win=1|7` (GET +
+  POST twin, readable without a device so a brand-new player sees it before
+  playing), `sboard()` groups sscores by user, MAX score, ties broken by who got
+  there first. Ranks tab is now: world daily → world survival week → world
+  survival today → friends survival (only when a friend has actually run one) →
+  friends standings. `standardDecksOnly` still gates srun, so a custom deck
+  cannot buy a rank. Careful bit: the world boards come from /sboard, NOT from
+  social state — the late `socialGet` refresh must not repaint them, and the
+  friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
+  fill it in (rendering it conditionally would have made it vanish until you
+  revisited the tab).
+- **Find friends by name** (same release): `action:"find"`, **prefix-only**,
+  capped at 8, self-excluded, LIKE wildcards escaped. Handles are already public
+  (they carry the world daily board) so this leaks nothing new — but substring
+  search over a growing table is a directory scraper, hence prefix-only. Results
+  carry `rel` (none/sent/incoming/friend) so the UI shows "+ Add" / "⏳ asked" /
+  "✓ friends" instead of letting you re-request. Adding from a search uses the
+  new `action:"request"` → **pending**, never instant: sharing your CODE is
+  consent, someone typing your name is not. (If they already asked you, your
+  request resolves to an accept.) Search box is debounced 300ms and
+  sequence-guarded so a slow early reply can't overwrite a newer one.
 - **Push on iPhone: diagnosable + rotation-proof** (4.31.0 — LIVE, Sam: works on
   the iPad, not the iPhone). An iPhone has no devtools, so "it doesn't work" was
   unfalsifiable. Three separate causes, all now handled:

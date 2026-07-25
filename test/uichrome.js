@@ -22,12 +22,16 @@ const server = http.createServer((req,res)=>{
   const pg = await ctx.newPage();
   pg.on('pageerror',e=>console.log('PAGEERROR:',e.message));
   const posts = [];
+  let sboardReply = { win:1, total:0, me:null, top:[] }, findReply = { results:[] };
   await pg.route(/lb\.test/, route=>{
     const req = route.request();
-    if(req.method()==='POST'){ try{ posts.push(JSON.parse(req.postData())); }catch(e){} }
-    route.fulfill({contentType:'application/json',
-      body: JSON.stringify({me:null,friends:[],requests:[],outgoing:0,inbox:[]}),
+    let bd = {};
+    if(req.method()==='POST'){ try{ bd = JSON.parse(req.postData()); posts.push(bd); }catch(e){} }
+    const send = o => route.fulfill({contentType:'application/json', body: JSON.stringify(o),
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}});
+    if(/\/sboard/.test(req.url())) return send(Object.assign({}, sboardReply, { win: bd.win===7?7:1 }));
+    if(bd.action==='find') return send(findReply);
+    send({me:null,friends:[],requests:[],outgoing:0,inbox:[]});
   });
   await pg.goto('http://localhost:8087/',{waitUntil:'load'});
   await pg.waitForTimeout(600);
@@ -114,30 +118,67 @@ const server = http.createServer((req,res)=>{
   const srun = posts.filter(p=>p.action==='srun' && p.score===17);
   if(!srun.length) throw new Error('srun (score 17) never sent to the server: '+JSON.stringify(posts.slice(-3)));
   if(posts.some(p=>p.action==='srun' && p.score===20)) throw new Error('custom-deck run leaked an srun');
+  // the survival boards are WORLDWIDE now — a friends-only board is empty for
+  // almost everyone, which is the opposite of a reason to come back
+  sboardReply = { total:3, me:{nick:'Sam', score:12, rank:2},
+    top:[{nick:'Jesse', score:23, avatar:null},{nick:'Sam', score:12, avatar:null},{nick:'Kim', score:9, avatar:null}] };
   await pg.evaluate(()=>goTab('ranks'));
-  await pg.waitForTimeout(600);   // let afterLobby's socialGet land before stubbing state
-  await pg.evaluate(()=>{
-    _social = { me:{handle:'Sam', code:'YW-XXXXXX', s7:17, sday:12},
-      friends:[{id:'f1', handle:'Jesse', s7:23, sday:8, sbest:23, tbest:4, w:0,l:0,t:0},
-               {id:'f2', handle:'Kim', s7:9, sday:0, w:0,l:0,t:0},
-               {id:'f3', handle:'Noah', s7:0, sday:0, w:0,l:0,t:0}],
-      requests:[], outgoing:0, inbox:[] };
-    document.getElementById('ranksSurv7').innerHTML = ranksSurvivalRows('s7','x');
-    document.getElementById('ranksSurvDay').innerHTML = ranksSurvivalRows('sday','none today');
-  });
+  await pg.waitForTimeout(800);
   const s7 = await pg.$eval('#ranksSurv7', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/Jesse.*23.*\(you\).*17.*Kim.*9/.test(s7)) throw new Error('7-day board wrong order: '+s7);
-  if(/Noah/.test(s7)) throw new Error('zero-best friend should not be listed (7d): '+s7);
+  if(!/Jesse.*23.*Sam.*\(you\).*12.*Kim.*9/.test(s7)) throw new Error('world 7-day board wrong: '+s7);
+  if(!/3 players this week/.test(s7)) throw new Error('7-day header should say this week: '+s7);
   const sday = await pg.$eval('#ranksSurvDay', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/\(you\).*12.*Jesse.*8/.test(sday)) throw new Error('today board wrong (me 12 should lead Jesse 8): '+sday);
-  if(/Kim/.test(sday)) throw new Error('Kim (0 today) should not be listed: '+sday);
+  if(!/3 players today/.test(sday)) throw new Error('today header wrong: '+sday);
+  if(!/you're #2/.test(s7)) throw new Error('own world rank missing: '+s7);
+  const wins = posts.filter(p=>p.win!==undefined).map(p=>p.win).sort();
+  if(wins.join(',') !== '1,7') throw new Error('both windows should be fetched, saw: '+wins.join(','));
   // tapping my own row shares a taunt
   let shared=null; await pg.exposeFunction('__cap', s=>{shared=s;}).catch(()=>{});
   await pg.evaluate(()=>{ navigator.share = d => { window.__cap(d.text); return Promise.resolve(); }; });
   await pg.click('#ranksSurvDay [aria-label="Share your survival run"]');
   await pg.waitForTimeout(150);
   if(!/survived 12 songs/.test(shared||'')) throw new Error('survival taunt share wrong: '+shared);
-  console.log('survival boards: srun sync + 7-day/today windows + taunt share OK');
+  console.log('world survival boards: both windows, own rank, taunt share OK');
+
+  // 5b-2) friends survival card: hidden with no friends, filled in by the LATE
+  // socialGet (it must not depend on _social being ready at first render)
+  if(await pg.$('#ranksSurvFrWrap .card')) throw new Error('friends survival card shown with no friends');
+  await pg.evaluate(()=>{
+    _social = { me:{handle:'Sam', code:'YW-XXXXXX', s7:17, sday:12},
+      friends:[{id:'f1', handle:'Jesse', s7:23, sday:8, sbest:23, tbest:4, w:0,l:0,t:0},
+               {id:'f2', handle:'Kim', s7:9, sday:0, w:0,l:0,t:0},
+               {id:'f3', handle:'Noah', s7:0, sday:0, w:0,l:0,t:0}],
+      requests:[], outgoing:0, inbox:[] };
+    document.getElementById('ranksSurvFrWrap').innerHTML = ranksSurvFriendsCard();
+  });
+  const sfr = await pg.$eval('#ranksSurvFrWrap', e=>e.innerText.replace(/\s+/g,' '));
+  if(!/Jesse.*23.*\(you\).*17.*Kim.*9/.test(sfr)) throw new Error('friends survival board wrong order: '+sfr);
+  if(/Noah/.test(sfr)) throw new Error('zero-best friend should not be listed: '+sfr);
+  console.log('friends survival card: hidden when empty, filled by late social state OK');
+
+  // 5b-3) find a player by name → request (never an instant friendship)
+  findReply = { results:[
+    {id:'u1', handle:'Jesse', avatar:null, rel:'none'},
+    {id:'u2', handle:'Jessica', avatar:null, rel:'friend'},
+    {id:'u3', handle:'Jesper', avatar:null, rel:'sent'}] };
+  await pg.evaluate(()=>{ localStorage.setItem('tl_user', JSON.stringify({handle:'Sam',code:'YW-XXXXXX'})); goTab('friends'); });
+  await pg.waitForTimeout(600);
+  await pg.fill('#findIn', 'J');
+  await pg.waitForTimeout(500);
+  if((await pg.$eval('#findOut', e=>e.innerText)).trim()) throw new Error('1 character should not trigger a search');
+  await pg.fill('#findIn', 'Jes');
+  await pg.waitForSelector('#findOut button', {timeout:5000});
+  const found = await pg.$eval('#findOut', e=>e.innerText.replace(/\s+/g,' '));
+  if(!/Jesse/.test(found) || !/friends/.test(found) || !/asked/.test(found))
+    throw new Error('search results missing relationship states: '+found);
+  const addBtns = await pg.$$('#findOut button');
+  if(addBtns.length !== 1) throw new Error('only the unrelated player should offer a button, got '+addBtns.length);
+  await addBtns[0].click();
+  await pg.waitForTimeout(400);
+  const req = posts.filter(p=>p.action==='request');
+  if(req.length !== 1 || req[0].user !== 'u1') throw new Error('request not sent for the right user: '+JSON.stringify(req));
+  if(posts.some(p=>p.action==='add' && p.code)) throw new Error('name search must not use the instant add-by-code path');
+  console.log('player search: debounced, min 2 chars, relationship-aware, sends a request OK');
 
   // 5c) achievement popup: silent baseline, pops on a fresh unlock, no re-pop
   await pg.evaluate(()=>{

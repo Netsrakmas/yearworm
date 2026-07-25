@@ -69,6 +69,39 @@ async function board(env, day, device, cors){
     top: top.map(r => ({ nick: r.nick, score: r.score, timeMs: r.time_ms, avatar: r.avatar || null })) }, 200, cors);
 }
 
+// World survival board for a WINDOW — today, or the rolling 7 days. Deliberately
+// never all-time: survival has unlimited attempts, so an all-time world board
+// rewards whoever grinds longest and then stays frozen forever, while a window
+// puts everyone back on the start line. Only sscores rows count, and the client
+// only submits those for built-in decks, so a custom deck can't buy a rank.
+async function sboard(env, win, device, cors){
+  const days = win === 7 ? 7 : 1, from = dayNow() - (days - 1);
+  let rows = [], total = 0, me = null;
+  try{
+    rows = (await env.DB.prepare(
+      "SELECT u.handle, u.avatar, MAX(s.score) sc, MIN(s.created) first FROM sscores s " +
+      "JOIN users u ON u.id = s.user_id WHERE s.day >= ?1 " +
+      "GROUP BY s.user_id ORDER BY sc DESC, first ASC LIMIT " + TOP_N
+    ).bind(from).all()).results || [];
+    total = ((await env.DB.prepare("SELECT COUNT(DISTINCT user_id) AS n FROM sscores WHERE day >= ?1").bind(from).first()) || {}).n || 0;
+    if(device){
+      const u = await userByDevice(env, device);
+      if(u){
+        const mine = await env.DB.prepare("SELECT MAX(score) AS sc FROM sscores WHERE day >= ?1 AND user_id = ?2").bind(from, u.id).first();
+        const sc = (mine && mine.sc) || 0;
+        if(sc > 0){
+          const better = ((await env.DB.prepare(
+            "SELECT COUNT(*) AS n FROM (SELECT user_id, MAX(score) AS m FROM sscores WHERE day >= ?1 GROUP BY user_id) t WHERE t.m > ?2"
+          ).bind(from, sc).first()) || {}).n || 0;
+          me = { nick: u.handle, score: sc, rank: better + 1 };
+        }
+      }
+    }
+  }catch(e){ /* sscores/avatar not migrated yet → empty board, never a 500 */ }
+  return json({ win: days, total, me,
+    top: rows.map(r => ({ nick: r.handle, score: r.sc, avatar: r.avatar || null })) }, 200, cors);
+}
+
 const SET_RE = /^\d+(\.\d+){1,8}$/;   // pool indices joined with dots (anchor + up to 8)
 const DEVICE_RE = /^[a-f0-9]{16,64}$/i;
 
@@ -402,6 +435,52 @@ async function handleSocialPost(env, b, cors, ctx){
     return socialState(env, me, cors);
   }
 
+  // Find players by name. Handles are already public (they carry the world daily
+  // board), so this exposes nothing new — but it is PREFIX-only and capped at 8,
+  // because a substring search over a growing table is a directory-scraping tool.
+  if(action === "find"){
+    const q = String(b.q || "").trim().slice(0, 20);
+    if(q.length < 2) return json({ results: [] }, 200, cors);
+    const like = q.replace(/[%_\\]/g, m => "\\" + m) + "%";
+    let rows = [];
+    try{ rows = (await env.DB.prepare(
+      "SELECT id, handle, avatar FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?2 ORDER BY handle LIMIT 8"
+    ).bind(like, me.id).all()).results || []; }
+    catch(e){ rows = (await env.DB.prepare(
+      "SELECT id, handle FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?2 ORDER BY handle LIMIT 8"
+    ).bind(like, me.id).all()).results || []; }
+    // annotate with the existing relationship so the UI offers the right button
+    // instead of letting someone re-request a friend they already have
+    const rel = {};
+    for(const r of rows){
+      const [x, y] = pair(me.id, r.id);
+      const ex = await env.DB.prepare("SELECT requester, status FROM friends WHERE a=?1 AND b=?2").bind(x, y).first();
+      rel[r.id] = !ex ? "none" : ex.status === "accepted" ? "friend"
+        : ex.requester === me.id ? "sent" : "incoming";
+    }
+    return json({ results: rows.map(r => ({ id: r.id, handle: r.handle, avatar: r.avatar || null, rel: rel[r.id] })) }, 200, cors);
+  }
+
+  // Ask to be someone's friend. Unlike "add" (by code — sharing your code IS
+  // consent) a name search gives no consent at all, so this only ever creates a
+  // PENDING row the other player has to accept.
+  if(action === "request"){
+    const other = await env.DB.prepare("SELECT id, handle FROM users WHERE id=?1").bind(String(b.user || "")).first();
+    if(!other) return json({ error: "player not found" }, 404, cors);
+    if(other.id === me.id) return json({ error: "that is you" }, 400, cors);
+    const [a, bb] = pair(me.id, other.id);
+    const ex = await env.DB.prepare("SELECT requester, status FROM friends WHERE a=?1 AND b=?2").bind(a, bb).first();
+    if(!ex){
+      await env.DB.prepare("INSERT INTO friends (a, b, requester, status, created) VALUES (?1,?2,?3,'pending',?4)")
+        .bind(a, bb, me.id, Date.now()).run();
+      push(other.id, { title: "Friend request 🎧", body: me.handle + " wants to be friends", tab: "friends" });
+    } else if(ex.status === "pending" && ex.requester !== me.id){
+      // they asked first — our "request" is really an accept
+      await env.DB.prepare("UPDATE friends SET status='accepted' WHERE a=?1 AND b=?2").bind(a, bb).run();
+    }
+    return socialState(env, me, cors);
+  }
+
   if(action === "srun"){
     // a survival run finished — record today's score for the daily/7-day boards
     const sc = Math.min(999, Math.max(0, parseInt(b.score, 10) || 0));
@@ -615,6 +694,21 @@ export default {
         "ON CONFLICT(day, device) DO UPDATE SET nick=excluded.nick"
       ).bind(day, device, nick, score, timeMs, Date.now()).run();
       return board(env, day, device, cors);
+    }
+
+    // survival world board. GET for convenience; the POST twin exists so the
+    // device token (a bearer credential) stays out of URLs and proxy logs.
+    if(url.pathname === "/sboard" && (req.method === "GET" || req.method === "POST")){
+      let win = 1, dev = "";
+      if(req.method === "GET"){
+        win = parseInt(url.searchParams.get("win"), 10) === 7 ? 7 : 1;
+        dev = (url.searchParams.get("device") || "").slice(0, 64);
+      } else {
+        let b; try{ b = await req.json(); }catch(e){ b = {}; }
+        win = parseInt(b.win, 10) === 7 ? 7 : 1;
+        dev = String(b.device || "");
+      }
+      return sboard(env, win, /^[a-f0-9]{16,64}$/i.test(dev) ? dev : null, cors);
     }
 
     if(url.pathname === "/chal" && req.method === "GET"){
