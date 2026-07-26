@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.32.3";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.33.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -7349,6 +7349,37 @@ function ranksFriendsRows(){
       <span style="color:${col}; flex:0 0 auto">${any?`${w>l?'👑 ':''}you ${w}–${l}${t?` +${t}`:''}`:'—'}</span></div>`;
   }).join("");
 }
+let _boards = { daily:null, s7:null, s1:null };
+function paintRanks(){
+  const put = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
+  if(_boards.daily) put("ranksDaily", ranksBoardHTML(_boards.daily));
+  if(_boards.s7) put("ranksSurv7", ranksSurvWorldHTML(_boards.s7, 'No survival runs this week yet — be the first.'));
+  if(_boards.s1) put("ranksSurvDay", ranksSurvWorldHTML(_boards.s1, 'No survival runs yet today — be the first.'));
+}
+// "add friend" straight from a leaderboard row. With a handful of players,
+// spotting someone on the board and adding them there beats swapping codes —
+// and most players never rename themselves, so searching their real name never
+// finds them (everyone starts as "Shady Penguin" and friends stay unfindable).
+function boardAddBtn(id){
+  if(!id || !LB.url || !loadProfile()) return "";
+  const me = _social && _social.me;
+  if(me && id === me.id) return "";
+  const fr = (_social && _social.friends) || [];
+  if(fr.some(f => f.id === id)) return "";
+  const asked = ((_social && _social.outgoingIds) || []).includes(id);
+  const incoming = ((_social && _social.requests) || []).some(q => q.id === id);
+  if(asked) return `<span class="muted" style="flex:0 0 auto; font-size:11px" title="Friend request sent">⏳</span>`;
+  return `<button class="btn ghost sm" style="flex:0 0 auto; padding:5px 9px; font-size:12px"
+    onclick="event.stopPropagation(); addFromBoard('${id}')" aria-label="${incoming ? 'Accept friend request' : 'Add as friend'}">${incoming ? '✓' : '+'}</button>`;
+}
+async function addFromBoard(id){
+  const r = await socialPost({ action:"request", user:id });
+  if(!r || !r.ok){ toast(r && r.status === 429 ? "Too many requests just now — try again in a moment." : "Couldn't send that request."); return; }
+  const now = (r.body.friends || []).some(f => f.id === id);
+  toast(now ? "You're friends ⚔️" : "Friend request sent — they'll see it next time they play.");
+  if(r.body) _social = r.body;                // the reply IS fresh social state
+  paintRanks();                               // repaint so the row flips to ⏳ / friend
+}
 async function lbFetchSurv(win){
   if(!LB.url) return null;
   try{ const r = await fetch(LB.url+"/sboard", { method:"POST", headers:{ "content-type":"application/json" },
@@ -7367,7 +7398,8 @@ function ranksSurvWorldHTML(b, emptyMsg){
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
-      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}${mine?` ${ico('share',1)}`:''}</span></div>`;
+      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}${mine?` ${ico('share',1)}`:''}</span>
+      ${mine?'':boardAddBtn(t.id)}</div>`;
   }).join("");
   // outside the top 10 you'd otherwise never see yourself — and your own rank is
   // the whole reason to open this tab
@@ -7430,7 +7462,8 @@ function ranksBoardHTML(b){
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
-      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}/${RUN_LEN}</span></div>`;
+      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}/${RUN_LEN}</span>
+      ${mine?'':boardAddBtn(t.id)}</div>`;
   }).join("");
   const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; border-top:1px solid var(--line); margin-top:4px">
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>
@@ -7579,9 +7612,12 @@ function afterLobby(tab){
   }
   if(tab === "friends"){ chalNews(); renderFriendsCard(_social); }
   if(tab === "ranks" && LB.url){
-    lbFetchDaily().then(b=>{ const el=document.getElementById("ranksDaily"); if(el) el.innerHTML = ranksBoardHTML(b); });
-    lbFetchSurv(7).then(b=>{ const el=document.getElementById("ranksSurv7"); if(el) el.innerHTML = ranksSurvWorldHTML(b, 'No survival runs this week yet — be the first.'); });
-    lbFetchSurv(1).then(b=>{ const el=document.getElementById("ranksSurvDay"); if(el) el.innerHTML = ranksSurvWorldHTML(b, 'No survival runs yet today — be the first.'); });
+    // the payloads are cached so the boards can be REPAINTED when social state
+    // lands: the add-friend button needs to know who's already a friend, and
+    // that arrives after the boards do
+    lbFetchDaily().then(b=>{ _boards.daily = b; paintRanks(); });
+    lbFetchSurv(7).then(b=>{ _boards.s7 = b; paintRanks(); });
+    lbFetchSurv(1).then(b=>{ _boards.s1 = b; paintRanks(); });
   }
   if(tab === "profile"){ const c=document.getElementById("friendsCode"); if(c && loadProfile()) c.innerHTML = `<button class="btn ghost sm" onclick="shareCode()" aria-label="Share your friend code">code <b style="font-family:var(--mono)">${esc((loadProfile()||{}).code||"")}</b> ${ico('share',1)}</button>`; mountGoogleBtn(); }
   if(LB.url) socialGet().then(st => { if(st){ tryPendingAdd(st);
@@ -7591,7 +7627,8 @@ function afterLobby(tab){
     // the WORLD survival boards come from /sboard, not from social state — only
     // the friends card is refreshed here, or a late socialGet would wipe them
     if(_tab==="ranks"){ const rf=document.getElementById("ranksFriends"); if(rf) rf.innerHTML = ranksFriendsRows();
-      const sf=document.getElementById("ranksSurvFrWrap"); if(sf) sf.innerHTML = ranksSurvFriendsCard(); }
+      const sf=document.getElementById("ranksSurvFrWrap"); if(sf) sf.innerHTML = ranksSurvFriendsCard();
+      paintRanks(); }   // now that friends are known, the add buttons are correct
     // refresh the nav badge without a full re-render
     const bar=document.querySelector(".tabbar"); if(bar && _playScreen==null) bar.outerHTML = navHTML(_tab);
     checkAchievements();   // friend/duel achievements depend on fresh social state

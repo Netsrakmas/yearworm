@@ -156,6 +156,55 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
   console.log('offline search → says the search failed, not that she is missing OK');
   await sam.pg.unroute(/\/social/);
 
+  // 7) ADD FRIEND STRAIGHT FROM THE LEADERBOARD. Most players never rename
+  // themselves ("Shady Penguin"), so their real name is unsearchable — seeing
+  // them on the board is often the only way you'll recognise anyone.
+  const stranger = await mkPlayer('Retro Walrus');
+  await stranger.pg.evaluate(()=>socialPost({action:'srun', score: 42}));
+  await sam.pg.evaluate(()=>socialPost({action:'srun', score: 7}));
+  await sam.pg.waitForTimeout(400);
+
+  await sam.pg.evaluate(()=>goTab('ranks'));
+  await sam.pg.waitForTimeout(1200);
+  const board = await sam.pg.$eval('#ranksSurvDay', e=>e.innerText.replace(/\s+/g,' '));
+  if(!/Retro Walrus/.test(board)) throw new Error('stranger missing from the world board: '+board);
+  // my own row must never offer "add yourself"
+  const rows = await sam.pg.$$('#ranksSurvDay .row');
+  const mineHasBtn = await sam.pg.evaluate(()=>{
+    const r = [...document.querySelectorAll('#ranksSurvDay .row')].find(x=>/\(you\)/.test(x.innerText));
+    return !!(r && r.querySelector('button[aria-label*="friend"]'));
+  });
+  if(mineHasBtn) throw new Error('own board row offers an add-friend button');
+  const addBtn = await sam.pg.$('#ranksSurvDay button[aria-label="Add as friend"]');
+  if(!addBtn) throw new Error('no add-friend button on the stranger row (rows: '+rows.length+')');
+  await addBtn.click();
+  await sam.pg.waitForTimeout(800);
+  // it must become a PENDING request, not an instant friendship
+  const st = await sam.pg.evaluate(()=>socialPost({action:'state'}).then(r=>r.body));
+  if((st.friends||[]).some(f=>f.handle==='Retro Walrus')) throw new Error('board add created an instant friendship');
+  if(!(st.outgoingIds||[]).length) throw new Error('board add did not create an outgoing request: '+JSON.stringify(st.outgoing));
+  console.log('board add: request sent (pending), own row exempt OK');
+
+  // and the row now shows "asked" instead of another + button
+  await sam.pg.evaluate(()=>goTab('ranks'));
+  await sam.pg.waitForTimeout(1200);
+  if(await sam.pg.$('#ranksSurvDay button[aria-label="Add as friend"]'))
+    throw new Error('already-requested player still offers an add button');
+  console.log('board add: row flips to ⏳ after the request OK');
+
+  // once they accept, the button is gone for good
+  const wSt = await stranger.pg.evaluate(()=>socialPost({action:'state'}).then(r=>r.body));
+  const samId = wSt.requests[0] && wSt.requests[0].id;
+  if(!samId) throw new Error('stranger never received the request: '+JSON.stringify(wSt.requests));
+  await stranger.pg.evaluate(id=>socialPost({action:'accept', user:id}), samId);
+  await sam.pg.evaluate(()=>goTab('ranks'));
+  await sam.pg.waitForTimeout(1200);
+  const after = await sam.pg.$eval('#ranksSurvDay', e=>e.innerText.replace(/\s+/g,' '));
+  if(!/Retro Walrus/.test(after)) throw new Error('friend vanished from the board');
+  if(await sam.pg.$('#ranksSurvDay button[aria-label="Add as friend"]'))
+    throw new Error('an existing friend still offers an add button');
+  console.log('board add: existing friend offers no button OK');
+
   console.log('FIND PLAYERS TEST PASS ✓');
 
   await browser.close(); server.close();

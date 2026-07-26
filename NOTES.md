@@ -90,6 +90,22 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Add friend from the leaderboard** (4.33.0 — Sam, after search STILL couldn't
+  find his friend). **The real finding, from his screenshot:** his whole friends
+  list reads "Vinyl Flamingo / Turbo Penguin / Retro Llama / Shady Penguin" —
+  those are our OWN auto-generated names (`NICK_ADJ` × `NICK_ANIMAL` in
+  `lbNick()`). Almost nobody renames themselves, so **searching a real name can
+  never work for most players**; his friend is on there under a random animal.
+  Search by name is worth keeping, but it is not the primary way people will
+  find each other at this size — the board is. So: `board()` and `sboard()` now
+  return `uid` per row (null for unclaimed devices) and every board row carries
+  a `+` that fires `action:"request"` (still PENDING — a board sighting is not
+  consent either). `socialState` gained **`outgoingIds`** so the row can show ⏳
+  after a reload, not just in-session. Careful bit: boards arrive BEFORE social
+  state, so the payloads are cached in `_boards` and `paintRanks()` re-renders
+  once friends are known — otherwise an existing friend briefly shows a `+`.
+  Tests: findplayers.js §7 (request is pending, own row exempt, row flips to ⏳,
+  accepted friend offers no button).
 - **Search fix 3: a FAILED search is not "she doesn't exist"** (4.32.3 — Sam:
   "staat nog steeds dat ze niet bestaat"). The real defect, and it outranks both
   earlier fixes: `findPlayers` rendered the not-found message whenever the POST

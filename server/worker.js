@@ -48,8 +48,11 @@ async function board(env, day, device, cors){
   // the board alive on a database without the avatar column.
   let top;
   try{
+    // u.id rides along so the board can offer "add friend" — with a handful of
+    // players, seeing someone score and adding them on the spot beats asking
+    // them for a code. Anonymous rows (no claimed profile) simply carry no id.
     top = (await env.DB.prepare(
-      "SELECT s.nick, s.score, s.time_ms, u.avatar FROM scores s " +
+      "SELECT s.nick, s.score, s.time_ms, u.avatar, u.id AS uid FROM scores s " +
       "LEFT JOIN devices d ON d.device = s.device LEFT JOIN users u ON u.id = d.user_id " +
       "WHERE s.day=?1 ORDER BY s.score DESC, s.time_ms ASC, s.created ASC LIMIT " + TOP_N
     ).bind(day).all()).results || [];
@@ -71,7 +74,7 @@ async function board(env, day, device, cors){
     }
   }
   return json({ day, total, me,
-    top: top.map(r => ({ nick: r.nick, score: r.score, timeMs: r.time_ms, avatar: r.avatar || null })) }, 200, cors);
+    top: top.map(r => ({ nick: r.nick, score: r.score, timeMs: r.time_ms, avatar: r.avatar || null, id: r.uid || null })) }, 200, cors);
 }
 
 // World survival board for a WINDOW — today, or the rolling 7 days. Deliberately
@@ -84,7 +87,7 @@ async function sboard(env, win, device, cors){
   let rows = [], total = 0, me = null;
   try{
     rows = (await env.DB.prepare(
-      "SELECT u.handle, u.avatar, MAX(s.score) sc, MIN(s.created) first FROM sscores s " +
+      "SELECT u.id AS uid, u.handle, u.avatar, MAX(s.score) sc, MIN(s.created) first FROM sscores s " +
       "JOIN users u ON u.id = s.user_id WHERE s.day >= ?1 " +
       "GROUP BY s.user_id ORDER BY sc DESC, first ASC LIMIT " + TOP_N
     ).bind(from).all()).results || [];
@@ -104,7 +107,7 @@ async function sboard(env, win, device, cors){
     }
   }catch(e){ /* sscores/avatar not migrated yet → empty board, never a 500 */ }
   return json({ win: days, total, me,
-    top: rows.map(r => ({ nick: r.handle, score: r.sc, avatar: r.avatar || null })) }, 200, cors);
+    top: rows.map(r => ({ nick: r.handle, score: r.sc, avatar: r.avatar || null, id: r.uid || null })) }, 200, cors);
 }
 
 const SET_RE = /^\d+(\.\d+){1,8}$/;   // pool indices joined with dots (anchor + up to 8)
@@ -324,7 +327,9 @@ async function socialState(env, me, cors){
       at: d.created
     });
   }
-  const friends = [], requests = []; let outgoing = 0;
+  // outgoingIds, not just a count: the boards' "add friend" button has to show
+  // "asked" for someone you already requested, including after a reload
+  const friends = [], requests = [], outgoingIds = []; let outgoing = 0;
   for(const r of rows){
     const other = r.a === me.id ? r.b : r.a;
     if(!(other in named)) continue;
@@ -335,7 +340,7 @@ async function socialState(env, me, cors){
                      w7: t.w7, l7: t.l7, t7: t.t7, recent: t.recent, sbest: pb.s || 0, tbest: pb.t || 0,
                      sday: sToday[other] || 0, s7: s7[other] || 0 });
     }
-    else if(r.requester === me.id) outgoing++;
+    else if(r.requester === me.id){ outgoing++; outgoingIds.push(other); }
     else requests.push({ id: other, handle: named[other], avatar: avatars[other] || null });
   }
   const inbox = ((await env.DB.prepare(
@@ -365,7 +370,7 @@ async function socialState(env, me, cors){
   // id rides along so share links can carry WHO sent them (receiver matches it
   // against their friends list to enable react-back on link-played duels)
   return json({ me: { id: me.id, handle: me.handle, code: me.code, linked: !!linked, avatar: myAv,
-    sday: sToday[me.id] || 0, s7: s7[me.id] || 0 }, friends, requests, outgoing, inbox, sent }, 200, cors);
+    sday: sToday[me.id] || 0, s7: s7[me.id] || 0 }, friends, requests, outgoing, outgoingIds, inbox, sent }, 200, cors);
 }
 async function handleSocialPost(env, b, cors, ctx){
   // schedule a push without delaying the response (falls back to inline await)
