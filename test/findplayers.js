@@ -267,6 +267,51 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
   if(askedAfter <= askedBefore) throw new Error('board add button did not send a request ('+askedBefore+'→'+askedAfter+')');
   console.log('daily board: tapping + sends a friend request OK');
 
+  // 9) A player with NO account who renames themselves in Profile. This is the
+  // real Carmen case: she typed her name, it rode along with her daily score so
+  // the board showed "Carmen Sophie" — but no profile existed, so she could not
+  // be searched or added, and her row carried no "+" at all.
+  const anon = await browser.newContext({viewport:{width:430,height:900},hasTouch:true,serviceWorkers:'block'});
+  const apg = await anon.newPage();
+  apg.on('pageerror',e=>console.log('PAGEERROR[anon]:',e.message));
+  await apg.goto(base,{waitUntil:'load'}); await apg.waitForTimeout(500);
+  await apg.evaluate(()=>{ LB.url = location.origin; });
+  if(await apg.evaluate(()=>!!loadProfile())) throw new Error('fresh device should have no profile');
+  const anonDay = await apg.evaluate(()=>dailyNumber());
+  await apg.evaluate(d=>lbSubmitDaily(1, 50000, d), anonDay);   // plays before naming herself
+  await apg.evaluate(()=>goTab('profile')); await apg.waitForTimeout(400);
+  await apg.fill('#nickTop', 'Nina Kropf');
+  await apg.$eval('#nickTop', e=>e.dispatchEvent(new Event('change')));
+  await apg.waitForTimeout(900);
+  const anonProf = await apg.evaluate(()=>loadProfile());
+  if(!anonProf || anonProf.handle !== 'Nina Kropf')
+    throw new Error('renaming without an account did not claim one: '+JSON.stringify(anonProf));
+  const hNina = await hits('Nina Kropf');
+  if(!hNina.includes('Nina Kropf')) throw new Error('auto-claimed player is not searchable: '+JSON.stringify(hNina));
+  console.log('no account + rename → claims the name, immediately searchable OK');
+
+  // …and a row that genuinely has no account explains itself instead of
+  // rendering a blank cell (which reads as a broken button)
+  const ghost = await browser.newContext({viewport:{width:430,height:900},hasTouch:true,serviceWorkers:'block'});
+  const gpg = await ghost.newPage();
+  await gpg.goto(base,{waitUntil:'load'}); await gpg.waitForTimeout(500);
+  await gpg.evaluate(()=>{ LB.url = location.origin; store.set('tl_nick','Ghost Player'); });
+  await gpg.evaluate(d=>lbSubmitDaily(2, 45000, d), anonDay);
+  await sam.pg.evaluate(()=>goTab('play'));
+  await sam.pg.evaluate(()=>goTab('ranks'));
+  await sam.pg.waitForTimeout(1500);
+  const gRow = await sam.pg.$$eval('#ranksDaily .row', rows => rows.map(r => ({
+    name:(r.querySelector('b')||{}).textContent||'', btn:(r.querySelector('button')||{}).textContent||'' })));
+  const ghostRow = gRow.find(r => r.name.indexOf('Ghost Player') === 0);
+  if(!ghostRow) throw new Error('account-less player missing from the board: '+JSON.stringify(gRow));
+  if(ghostRow.btn !== '?') throw new Error('account-less row should explain itself, got: '+JSON.stringify(ghostRow));
+  await sam.pg.click('#ranksDaily .row:has-text("Ghost Player") button');
+  await sam.pg.waitForTimeout(400);
+  const tip = await sam.pg.$eval('body', e=>e.innerText);
+  if(!/claimed a name yet/.test(tip)) throw new Error('no explanation toast for an account-less row');
+  console.log('board row without an account → "?" explains why, no blank cell OK');
+  await anon.close(); await ghost.close();
+
   console.log('FIND PLAYERS TEST PASS ✓');
 
   await browser.close(); server.close();

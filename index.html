@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.34.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.35.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5370,7 +5370,15 @@ function saveNick(v){
   // the name you actually picked, because search reads users.handle. Everyone
   // starts on a generated name ("Groovy Flamingo"), so this is the ONE step
   // that makes a person findable — it was silently a no-op.
-  if(LB.url && loadProfile() && HANDLE_OK.test(clean)) renameOnServer(clean, prev);
+  // …and if there's no account YET, typing your own name IS the claim. Without
+  // this a player who renames themselves in Profile appears on the world board
+  // under that name while having no profile at all — so they can't be searched,
+  // can't be added, and their row carries no "+". Nobody finds the Friends tab
+  // to press "Claim" first; they just fix their name where they see it.
+  if(LB.url && HANDLE_OK.test(clean)){
+    if(loadProfile()) renameOnServer(clean, prev);
+    else claimHandle(clean);
+  }
   const d = loadDaily();
   if(d.last === localDay(0)) lbSubmitDaily(d.score||0, d.timeMs||0, d.num).then(b=>{
     const el = document.getElementById("lbline"); if(el && b) el.innerHTML = lbLineHTML(b);
@@ -7388,8 +7396,15 @@ function paintRanks(){
 // spotting someone on the board and adding them there beats swapping codes —
 // and most players never rename themselves, so searching their real name never
 // finds them (everyone starts as "Shady Penguin" and friends stay unfindable).
-function boardAddBtn(id){
-  if(!id || !LB.url || !loadProfile()) return "";
+function boardAddBtn(id, nick){
+  if(!LB.url || !loadProfile()) return "";
+  // No id = that row's device never claimed a profile. They're on the board
+  // because a daily score carries a nickname on its own. A blank cell here is
+  // the same trap as before — it reads as "the button is broken" when the real
+  // answer is "there is no account to add", so make it tappable and say so.
+  if(!id) return `<button class="btn ghost sm" style="flex:0 0 auto; padding:5px 9px; font-size:12px; opacity:.5"
+    onclick="event.stopPropagation(); toast('${esc(String(nick||'This player')).replace(/'/g,'')} hasn\\'t claimed a name yet — once they do, you can add them here.')"
+    aria-label="Why can't I add this player?">?</button>`;
   const me = _social && _social.me;
   if(me && id === me.id) return "";
   const fr = (_social && _social.friends) || [];
@@ -7430,7 +7445,7 @@ function ranksSurvWorldHTML(b, emptyMsg){
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
       <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}${mine?` ${ico('share',1)}`:''}</span>
-      ${mine?'':boardAddBtn(t.id)}</div>`;
+      ${mine?'':boardAddBtn(t.id, t.nick)}</div>`;
   }).join("");
   // outside the top 10 you'd otherwise never see yourself — and your own rank is
   // the whole reason to open this tab
@@ -7494,7 +7509,7 @@ function ranksBoardHTML(b){
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
       <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}/${RUN_LEN}</span>
-      ${mine?'':boardAddBtn(t.id)}</div>`;
+      ${mine?'':boardAddBtn(t.id, t.nick)}</div>`;
   }).join("");
   const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; border-top:1px solid var(--line); margin-top:4px">
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>

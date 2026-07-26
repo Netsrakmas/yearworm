@@ -90,6 +90,22 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Renaming with NO account now claims one** (4.35.0 — the actual Carmen case,
+  spotted from Sam's screenshot: her daily row had neither "+" nor "✓", i.e.
+  `boardAddBtn` got a null id). A daily score carries its own `nick`, entirely
+  independent of any profile — so a player who never claimed a name still shows
+  up on the world board under whatever they typed in Profile. She looked like a
+  player; she had no `users` row at all. Hence: unsearchable, unaddable, no "+".
+  4.34.0 didn't help her either — `saveNick` only synced `if(loadProfile())`.
+  Now: profile exists → rename; no profile → **claimHandle()**, because typing
+  your own name in Profile IS the claim. Nobody hunts for the Friends tab's
+  "Claim" button; they fix their name where they see it.
+  Second half: a board row with no account rendered a BLANK cell — the same trap
+  as the friends-tick (blank reads as "button broken"). It's now a dimmed "?"
+  that toasts "X hasn't claimed a name yet — once they do, you can add them."
+  Tests: findplayers.js §9 (fresh device submits a daily, renames in Profile,
+  gets an account and is searchable; a genuinely account-less row shows "?" and
+  explains itself on tap).
 - **Renaming yourself never reached the server** (4.34.0 — THE root cause of the
   whole "I can't find Carmen Sophie" saga, and the last of five rounds on it).
   `saveNick()` wrote `tl_nick` to localStorage and re-submitted daily/challenge
