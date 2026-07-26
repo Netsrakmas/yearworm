@@ -138,6 +138,13 @@
     background:var(--s2); border:2px solid var(--line); font-size:17px; flex:0 0 auto; font-weight:800;}
   .avatar.me{border-color:var(--gold); color:var(--gold);}
   .avatar.sm{width:27px; height:27px; font-size:15px; border-width:1px;}
+  /* Leaderboard rows end in two FIXED columns — score, then action. The action
+     is a ✓, a +, an hourglass, a ?, a share icon or nothing, all different
+     widths, so without reserving the space the score column zig-zags row to
+     row. .bactn keeps its width even when empty. */
+  .bscore{flex:0 0 auto; min-width:34px; text-align:right; font-family:var(--mono); font-size:13px;}
+  .bactn{flex:0 0 30px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;}
+  .bactn .btn.sm{padding:5px 0; width:100%; min-width:0;}
   .avatar svg{width:100%; height:100%; display:block;}
   .vs{font-size:10px; font-weight:800; color:var(--faint); letter-spacing:.08em; flex:0 0 auto;}
   /* ===== 4.0 tabbed lobby ===== */
@@ -488,7 +495,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.35.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.35.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -7402,7 +7409,7 @@ function boardAddBtn(id, nick){
   // because a daily score carries a nickname on its own. A blank cell here is
   // the same trap as before — it reads as "the button is broken" when the real
   // answer is "there is no account to add", so make it tappable and say so.
-  if(!id) return `<button class="btn ghost sm" style="flex:0 0 auto; padding:5px 9px; font-size:12px; opacity:.5"
+  if(!id) return `<button class="btn ghost sm" style="font-size:12px; opacity:.5"
     onclick="event.stopPropagation(); toast('${esc(String(nick||'This player')).replace(/'/g,'')} hasn\\'t claimed a name yet — once they do, you can add them here.')"
     aria-label="Why can't I add this player?">?</button>`;
   const me = _social && _social.me;
@@ -7411,11 +7418,11 @@ function boardAddBtn(id, nick){
   // Show a tick for people you already have, rather than nothing: with a handful
   // of players every row IS a friend, and a blank column reads as "the button
   // never shipped" instead of "you already added them".
-  if(fr.some(f => f.id === id)) return `<span class="muted" style="flex:0 0 auto; font-size:11px" title="Already friends">✓</span>`;
+  if(fr.some(f => f.id === id)) return `<span class="muted" style="font-size:11px" title="Already friends">✓</span>`;
   const asked = ((_social && _social.outgoingIds) || []).includes(id);
   const incoming = ((_social && _social.requests) || []).some(q => q.id === id);
-  if(asked) return `<span class="muted" style="flex:0 0 auto; font-size:11px" title="Friend request sent">⏳</span>`;
-  return `<button class="btn ghost sm" style="flex:0 0 auto; padding:5px 9px; font-size:12px"
+  if(asked) return `<span class="muted" style="font-size:11px" title="Friend request sent">⏳</span>`;
+  return `<button class="btn ghost sm" style="font-size:12px"
     onclick="event.stopPropagation(); addFromBoard('${id}')" aria-label="${incoming ? 'Accept friend request' : 'Add as friend'}">${incoming ? '✓' : '+'}</button>`;
 }
 async function addFromBoard(id){
@@ -7444,15 +7451,16 @@ function ranksSurvWorldHTML(b, emptyMsg){
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
-      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}${mine?` ${ico('share',1)}`:''}</span>
-      ${mine?'':boardAddBtn(t.id, t.nick)}</div>`;
+      <span class="bscore">${t.score}</span>
+      <span class="bactn">${mine ? ico('share',1) : boardAddBtn(t.id, t.nick)}</span></div>`;
   }).join("");
   // outside the top 10 you'd otherwise never see yourself — and your own rank is
   // the whole reason to open this tab
   const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:7px 2px; border-top:1px solid var(--line); margin-top:4px; cursor:pointer" role="button" tabindex="0" onclick="shareSurvival(${b.me.score})" aria-label="Share your survival run">
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>
       <span class="avatar sm me" aria-hidden="true">${myAvatar()}</span>
-      <b style="flex:1; color:var(--gold)">You</b><span style="font-family:var(--mono); font-size:13px">${b.me.score} ${ico('share',1)}</span></div>` : ``;
+      <b style="flex:1; color:var(--gold)">You</b>
+      <span class="bscore">${b.me.score}</span><span class="bactn">${ico('share',1)}</span></div>` : ``;
   const head = `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} player${b.total===1?'':'s'} ${b.win===7?'this week':'today'}${b.me?` · you're #${meRank}`:''}</div>`;
   return head + rows + meLine;
 }
@@ -7508,13 +7516,14 @@ function ranksBoardHTML(b){
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
-      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${t.score}/${RUN_LEN}</span>
-      ${mine?'':boardAddBtn(t.id, t.nick)}</div>`;
+      <span class="bscore">${t.score}/${RUN_LEN}</span>
+      <span class="bactn">${mine?'':boardAddBtn(t.id, t.nick)}</span></div>`;
   }).join("");
   const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; border-top:1px solid var(--line); margin-top:4px">
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>
       <span class="avatar sm me" aria-hidden="true">${myAvatar()}</span>
-      <b style="flex:1; color:var(--gold)">You</b><span style="font-family:var(--mono); font-size:13px">${b.me.score}/${RUN_LEN}</span></div>` : ``;
+      <b style="flex:1; color:var(--gold)">You</b>
+      <span class="bscore">${b.me.score}/${RUN_LEN}</span><span class="bactn"></span></div>` : ``;
   const pct = b.me && b.total ? Math.max(1, Math.round(meRank / b.total * 100)) : null;
   return `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} played today${b.me?` · you're #${meRank}${pct?` · top ${pct}%`:``}`:''}</div>${rows}${meLine}`;
 }

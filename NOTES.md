@@ -90,6 +90,16 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Leaderboard columns fixed** (4.35.1 — Sam: "het is bij mij een beetje gek
+  uitgelijnd"). The trailing control is a ✓, +, ⏳, ?, share icon or nothing —
+  all different widths, and it sat directly after a `flex:0 0 auto` score, so
+  every row pushed its score to a different x. Two reserved columns now:
+  `.bscore` (min-width 34, right-aligned) and `.bactn` (fixed 30px, keeps its
+  width when EMPTY — that's the part that matters). The share icon on your own
+  survival row moved out of the score span into `.bactn` for the same reason.
+  uichrome §5b-1b measures `getBoundingClientRect().right` for every cell and
+  fails unless each column has exactly one distinct edge, and checks the five
+  states render one mark each.
 - **Renaming with NO account now claims one** (4.35.0 — the actual Carmen case,
   spotted from Sam's screenshot: her daily row had neither "+" nor "✓", i.e.
   `boardAddBtn` got a null id). A daily score carries its own `nick`, entirely

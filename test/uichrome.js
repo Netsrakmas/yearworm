@@ -140,6 +140,26 @@ const server = http.createServer((req,res)=>{
   if(!/survived 12 songs/.test(shared||'')) throw new Error('survival taunt share wrong: '+shared);
   console.log('world survival boards: both windows, own rank, taunt share OK');
 
+  // 5b-1b) the trailing controls are all different widths (✓, +, ⏳, ?, share,
+  // nothing), so without reserved columns the SCORES zig-zag row to row — which
+  // is what Sam saw. Every score and every action must share one right edge.
+  await pg.evaluate(()=>{
+    _social = { me:{id:'me',handle:'Sam'}, friends:[{id:'f1',handle:'Fr'}], requests:[], outgoing:1, outgoingIds:['f3'], inbox:[] };
+    _boards.daily = { day:1, total:4, me:{nick:'Sam',score:4,rank:1}, top:[
+      {nick:'Sam',score:4,id:'me'},{nick:'Fr',score:3,id:'f1'},{nick:'Str',score:2,id:'f2'},
+      {nick:'Asked',score:1,id:'f3'},{nick:'Anon',score:1,id:null}] };
+    paintRanks();
+  });
+  const edges = await pg.evaluate(()=>({
+    score:[...document.querySelectorAll('#ranksDaily .bscore')].map(e=>Math.round(e.getBoundingClientRect().right)),
+    actn:[...document.querySelectorAll('#ranksDaily .bactn')].map(e=>Math.round(e.getBoundingClientRect().right)) }));
+  if(edges.score.length < 5 || new Set(edges.score).size !== 1)
+    throw new Error('score column is ragged: '+JSON.stringify(edges.score));
+  if(new Set(edges.actn).size !== 1) throw new Error('action column is ragged: '+JSON.stringify(edges.actn));
+  const marks = await pg.$$eval('#ranksDaily .bactn', els=>els.map(e=>e.textContent.trim()));
+  if(marks.join('|') !== '|✓|+|⏳|?') throw new Error('wrong per-row controls: '+JSON.stringify(marks));
+  console.log('board columns: scores and actions each share one edge, one mark per state OK');
+
   // 5b-2) friends survival card: hidden with no friends, filled in by the LATE
   // socialGet (it must not depend on _social being ready at first render)
   if(await pg.$('#ranksSurvFrWrap .card')) throw new Error('friends survival card shown with no friends');
