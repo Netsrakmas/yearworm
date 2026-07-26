@@ -110,8 +110,32 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
   // a genuinely absent name still says so plainly
   const r6 = await search('Zzzz');
-  if(!/Nobody called/.test(r6)) throw new Error('absent name message wrong: "'+r6+'"');
-  console.log('absent name → plain "nobody is playing yet" OK');
+  if(!/claimed a name/.test(r6)) throw new Error('absent name message wrong: "'+r6+'"');
+  console.log('absent name → explains that they must claim a name first OK');
+
+  // 5) REPORTED: searching a person's full real name when their handle is only
+  // part of it. You know her as "Carmen Sophie"; she claimed "Carmen".
+  // the empty state ECHOES the query, so "contains the name" is not proof of a
+  // hit — assert on the result row markup instead
+  const hits = async (q) => {
+    await search(q);
+    return await sam.pg.$$eval('#findOut b', els => els.map(e=>e.textContent));
+  };
+  await mkPlayer('Carmen');
+  const h7 = await hits('Carmen Sophie');
+  if(!h7.includes('Carmen')) throw new Error('full name did not find the shorter handle: '+JSON.stringify(h7));
+  console.log('search "Carmen Sophie" → finds handle "Carmen" OK');
+
+  // …and the reverse: she claimed the full name, you type one word
+  await mkPlayer('Sophie de Vries');
+  const h8 = await hits('Vries');
+  if(!h8.includes('Sophie de Vries')) throw new Error('single word did not find the full handle: '+JSON.stringify(h8));
+  console.log('search "Vries" → finds "Sophie de Vries" OK');
+
+  // the handle matching the MOST words of the query ranks first
+  const h9 = await hits('Sophie de Vries');
+  if(h9[0] !== 'Sophie de Vries') throw new Error('fullest match should lead: '+JSON.stringify(h9));
+  console.log('ranking: the handle matching most words comes first OK');
 
   console.log('FIND PLAYERS TEST PASS ✓');
 

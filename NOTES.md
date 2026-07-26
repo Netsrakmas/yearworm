@@ -90,6 +90,19 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Search fix 2: per-WORD matching** (4.32.2 — Sam: "ik zoek Carmen Sophie maar
+  vind haar niet"). 4.32.1 matched the whole query as one substring, so typing
+  someone's full name found nothing when their handle is only part of it
+  (`%Carmen Sophie%` never matches the handle `Carmen`). Now the query is split
+  on spaces, each word ≥2 chars is matched as its own substring, results are
+  OR'd, and ranked by **how many words matched** (then prefix, then alphabetical).
+  Max 3 words; 1-letter words dropped (they'd match half the table). Also: the
+  not-found copy now says people only appear once they've **claimed a name** —
+  the most common reason someone is genuinely missing, and unguessable before.
+  ⚠️ Test-writing trap hit here: the empty state ECHOES the query, so
+  `/Carmen/.test(text)` passed on the "no Carmen Sophie" message — a false
+  green. findplayers.js now asserts on the result rows (`#findOut b`), not on
+  page text containing the name.
 - **Search fix: match anywhere in the name** (4.32.1 — Sam: "search player by
   name does not seem to work"). It worked mechanically; the RULES were wrong.
   Reproduced with a new full-stack suite `test/findplayers.js` (real index.html

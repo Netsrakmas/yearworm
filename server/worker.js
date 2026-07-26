@@ -443,15 +443,27 @@ async function handleSocialPost(env, b, cors, ctx){
   // cap of 8 — and handles are already public on the world daily board.
   // Prefix matches still rank first, because that IS what you usually mean.
   if(action === "find"){
-    const q = String(b.q || "").trim().slice(0, 20);
+    const q = String(b.q || "").trim().replace(/\s+/g, " ").slice(0, 20);
     if(q.length < 2) return json({ results: [] }, 200, cors);
-    const esc = q.replace(/[%_\\]/g, m => "\\" + m);
-    const any = "%" + esc + "%", pre = esc + "%";
-    const sel = (cols) => "SELECT " + cols + " FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?3 " +
-      "ORDER BY (CASE WHEN handle LIKE ?2 ESCAPE '\\' THEN 0 ELSE 1 END), handle LIMIT 8";
+    const lk = s => s.replace(/[%_\\]/g, m => "\\" + m);
+    // Search each WORD separately and accept any of them. You know someone as
+    // "Carmen Sophie" but she claimed just "Carmen" — one substring over the
+    // whole query finds nothing there, which is exactly how this got reported.
+    // Words of one letter are dropped: they'd match half the table.
+    let terms = q.split(" ").filter(t => t.length >= 2);
+    if(!terms.length) terms = [q];
+    terms = terms.slice(0, 3);
+    const n = terms.length;
+    const like = i => "handle LIKE ?" + (i + 1) + " ESCAPE '\\'";
+    const where = terms.map((_, i) => like(i)).join(" OR ");
+    // rank: most words matched first, then whoever starts with what you typed
+    const score = terms.map((_, i) => "(CASE WHEN " + like(i) + " THEN 1 ELSE 0 END)").join(" + ");
+    const sel = (cols) => "SELECT " + cols + " FROM users WHERE (" + where + ") AND id <> ?" + (n + 2) +
+      " ORDER BY (" + score + ") DESC, (CASE WHEN handle LIKE ?" + (n + 1) + " ESCAPE '\\' THEN 0 ELSE 1 END), handle LIMIT 8";
+    const binds = terms.map(t => "%" + lk(t) + "%").concat([lk(q) + "%", me.id]);
     let rows = [];
-    try{ rows = (await env.DB.prepare(sel("id, handle, avatar")).bind(any, pre, me.id).all()).results || []; }
-    catch(e){ rows = (await env.DB.prepare(sel("id, handle")).bind(any, pre, me.id).all()).results || []; }
+    try{ rows = (await env.DB.prepare(sel("id, handle, avatar")).bind(...binds).all()).results || []; }
+    catch(e){ rows = (await env.DB.prepare(sel("id, handle")).bind(...binds).all()).results || []; }
     // annotate with the existing relationship so the UI offers the right button
     // instead of letting someone re-request a friend they already have
     const rel = {};
