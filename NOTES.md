@@ -90,6 +90,26 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Renaming yourself never reached the server** (4.34.0 — THE root cause of the
+  whole "I can't find Carmen Sophie" saga, and the last of five rounds on it).
+  `saveNick()` wrote `tl_nick` to localStorage and re-submitted daily/challenge
+  scores with the new nick — it never called `action:"claim"`. So `users.handle`
+  kept the generated name forever. Consequences: search reads `users.handle`, so
+  a renamed player was findable ONLY under "Groovy Flamingo"; friends' rosters
+  showed the old name too. Since every player starts on a generated name
+  (`NICK_ADJ` × `NICK_ANIMAL`), renaming is the ONE step that makes a person
+  findable — and it was silently a no-op. Now `saveNick` → `renameOnServer()`
+  (same claim action). Second bug found while testing the first: the local store
+  was written BEFORE the server answered, so a rejected rename (409 handle
+  taken) left the device showing — and submitting to the boards — a name the
+  server never accepted. `renameOnServer(handle, prev)` now restores `prev` on
+  any non-ok reply and repaints the profile.
+  Also: `boardAddBtn` rendered NOTHING for people already on your roster, so
+  with a handful of players every row was blank and the feature read as
+  unshipped — friends now get a muted ✓.
+  Tests: findplayers.js §7 (rename → searchable under the new name, old name
+  gone, rejected rename keeps the original) and §8 (daily board shows + for a
+  stranger, ✓ for a friend, nothing for yourself; tapping + sends the request).
 - **Add friend from the leaderboard** (4.33.0 — Sam, after search STILL couldn't
   find his friend). **The real finding, from his screenshot:** his whole friends
   list reads "Vinyl Flamingo / Turbo Penguin / Retro Llama / Shady Penguin" —

@@ -205,6 +205,68 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
     throw new Error('an existing friend still offers an add button');
   console.log('board add: existing friend offers no button OK');
 
+  // 7) RENAMING must reach the server. Everyone starts on a generated name
+  // ("Groovy Flamingo"), so renaming is the ONE step that makes a person
+  // findable — and it only ever touched localStorage, so nobody could search
+  // the name their friend had actually picked.
+  const carmen = await mkPlayer('Shady Penguin');
+  await carmen.pg.evaluate(()=>goTab('profile'));
+  await carmen.pg.waitForTimeout(400);
+  await carmen.pg.fill('#nickTop', 'Carmen Sophie');
+  await carmen.pg.$eval('#nickTop', e=>e.dispatchEvent(new Event('change')));
+  await carmen.pg.waitForTimeout(700);
+  const hRen = await hits('Carmen Sophie');
+  if(!hRen.includes('Carmen Sophie')) throw new Error('renamed player is not searchable: '+JSON.stringify(hRen));
+  const hOld = await hits('Shady Penguin');
+  if(hOld.includes('Shady Penguin')) throw new Error('the OLD name still resolves after a rename: '+JSON.stringify(hOld));
+  console.log('rename → server updated, new name searchable, old name gone OK');
+
+  // a rename to a name someone else holds must be refused, not silently kept
+  await carmen.pg.fill('#nickTop', 'Jesse');
+  await carmen.pg.$eval('#nickTop', e=>e.dispatchEvent(new Event('change')));
+  await carmen.pg.waitForTimeout(700);
+  const stillHers = await hits('Carmen Sophie');
+  if(!stillHers.includes('Carmen Sophie')) throw new Error('a rejected rename lost the original name: '+JSON.stringify(stillHers));
+  console.log('rename to a taken name → refused, original kept OK');
+
+  // 8) the leaderboard add-friend button: + for a stranger, ✓ for a friend,
+  // nothing for yourself. With few players every row is a friend, and rendering
+  // NOTHING there reads as "the button was never built".
+  const day = await sam.pg.evaluate(()=>dailyNumber());
+  await sam.pg.evaluate(d=>lbSubmitDaily(4, 30000, d), day);
+  await carmen.pg.evaluate(d=>lbSubmitDaily(5, 25000, d), day);
+  await turbo.pg.evaluate(d=>lbSubmitDaily(3, 40000, d), day);
+  await sam.pg.waitForTimeout(400);
+  // Sam befriends Turbo so the board has one of each kind
+  const turboId = (await hits('TurboPinguin'))[0] && await sam.pg.evaluate(async()=>{
+    const r = await socialPost({action:'find', q:'TurboPinguin'}); return r.body.results[0].id; });
+  await sam.pg.evaluate(id=>socialPost({action:'request', user:id}), turboId);
+  await turbo.pg.evaluate(async()=>{ const r = await socialPost({action:'state'});
+    if(r.body.requests[0]) await socialPost({action:'accept', user:r.body.requests[0].id}); });
+  await sam.pg.evaluate(()=>goTab('ranks'));
+  await sam.pg.waitForTimeout(1500);
+  const drows = await sam.pg.$$eval('#ranksDaily .row', rows => rows.map(r => ({
+    name: (r.querySelector('b')||{}).textContent || '',
+    btn: (r.querySelector('button')||{}).textContent || '',
+    tick: /✓/.test(r.textContent) })));
+  const rowFor = n => drows.find(r => r.name.indexOf(n) === 0);
+  if(!rowFor('Carmen Sophie') || rowFor('Carmen Sophie').btn !== '+')
+    throw new Error('no add button for a stranger on the daily board: '+JSON.stringify(drows));
+  if(!rowFor('TurboPinguin') || !rowFor('TurboPinguin').tick)
+    throw new Error('existing friend not marked on the daily board: '+JSON.stringify(drows));
+  if(rowFor('Sam') && (rowFor('Sam').btn || rowFor('Sam').tick))
+    throw new Error('your own row should carry no add control: '+JSON.stringify(drows));
+  console.log('daily board: + for a stranger, ✓ for a friend, nothing for you OK');
+
+  // tapping it actually sends the request
+  const askedBefore = await sam.pg.evaluate(()=>((_social&&_social.outgoingIds)||[]).length);
+  await sam.pg.click('#ranksDaily .row:has-text("Carmen Sophie") button');
+  await sam.pg.waitForTimeout(900);
+  const askedAfter = await sam.pg.evaluate(async()=>{ const r = await socialPost({action:'state'});
+    return (r.body.outgoingIds||[]).length; });
+  if(askedAfter <= askedBefore) throw new Error('board add button did not send a request ('+askedBefore+'→'+askedAfter+')');
+  console.log('daily board: tapping + sends a friend request OK');
+
   console.log('FIND PLAYERS TEST PASS ✓');
 
   await browser.close(); server.close();

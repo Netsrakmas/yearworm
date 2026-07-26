@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.33.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.34.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5359,8 +5359,18 @@ function saveNickTop(v){
   if(lbNick() !== before) toast("Name saved — " + lbNick());
   const pfp = document.querySelector(".pfp"); if(pfp) pfp.innerHTML = myAvatar();   // keep the profile avatar in sync
 }
+// mirrors HANDLE_RE in the worker: 3–20 chars, no junk on the edges
+const HANDLE_OK = /^[\p{L}\p{N}][\p{L}\p{N} _\-.]{1,18}[\p{L}\p{N}]$/u;
 function saveNick(v){
-  store.set("tl_nick", (v||"").replace(/\s+/g," ").trim().slice(0,20));
+  const clean = (v||"").replace(/\s+/g," ").trim().slice(0,20);
+  const prev = store.get("tl_nick");
+  store.set("tl_nick", clean);
+  // Push the rename to the SERVER. Without this it only ever changed this
+  // device: your friends kept seeing the old name and nobody could find you by
+  // the name you actually picked, because search reads users.handle. Everyone
+  // starts on a generated name ("Groovy Flamingo"), so this is the ONE step
+  // that makes a person findable — it was silently a no-op.
+  if(LB.url && loadProfile() && HANDLE_OK.test(clean)) renameOnServer(clean, prev);
   const d = loadDaily();
   if(d.last === localDay(0)) lbSubmitDaily(d.score||0, d.timeMs||0, d.num).then(b=>{
     const el = document.getElementById("lbline"); if(el && b) el.innerHTML = lbLineHTML(b);
@@ -5510,6 +5520,24 @@ async function socialPost(data){
     if(r.ok && b && b.me){ saveProfile(b.me); adoptAvatar(b.me); _social = b; feedFromInbox(b); }
     return { ok: r.ok, status: r.status, body: b };
   }catch(e){ return null; }
+}
+// rename an EXISTING profile server-side (same action as the first claim)
+async function renameOnServer(handle, prev){
+  const r = await socialPost({ action:"claim", handle });
+  if(!r) return;   // offline: keep the typed name locally, it syncs on a later save
+  // A REFUSED rename must not stick locally. Otherwise this device shows a name
+  // the server never accepted — and submits it to the boards — so you appear
+  // under one name while friends and search see another.
+  if(!r.ok){
+    if(prev != null) store.set("tl_nick", prev);
+    toast(r.status === 409 ? "“"+handle+"” is taken — pick another name." : "Couldn't save that name — 3–20 letters or numbers.");
+    if(_tab === "profile") renderSetup();
+    return;
+  }
+  if(r.body && r.body.me){
+    store.set("tl_nick", r.body.me.handle);
+    if(_tab === "friends") renderFriendsCard(r.body);
+  }
 }
 async function claimHandle(v){
   // seed the account's face at claim time: lock in this device's default so the
@@ -7365,7 +7393,10 @@ function boardAddBtn(id){
   const me = _social && _social.me;
   if(me && id === me.id) return "";
   const fr = (_social && _social.friends) || [];
-  if(fr.some(f => f.id === id)) return "";
+  // Show a tick for people you already have, rather than nothing: with a handful
+  // of players every row IS a friend, and a blank column reads as "the button
+  // never shipped" instead of "you already added them".
+  if(fr.some(f => f.id === id)) return `<span class="muted" style="flex:0 0 auto; font-size:11px" title="Already friends">✓</span>`;
   const asked = ((_social && _social.outgoingIds) || []).includes(id);
   const incoming = ((_social && _social.requests) || []).some(q => q.id === id);
   if(asked) return `<span class="muted" style="flex:0 0 auto; font-size:11px" title="Friend request sent">⏳</span>`;
