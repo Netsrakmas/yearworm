@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.32.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.32.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5555,7 +5555,11 @@ function findPlayers(q, now){
         : p.rel === "sent" ? `<span class="muted" style="font-size:12px; flex:0 0 auto">⏳ asked</span>`
         : `<button class="btn sm ${p.rel === "incoming" ? "primary" : ""}" style="flex:0 0 auto" onclick="requestFriend('${p.id}','${esc(p.handle)}')" aria-label="${p.rel === "incoming" ? "Accept" : "Add"} ${esc(p.handle)}">${p.rel === "incoming" ? "✓ Accept" : "+ Add"}</button>`}
       </div>`).join("")
-      : `<div class="muted" style="font-size:12.5px; margin-top:6px">No player called “${esc(q)}” — names must match from the start.</div>`;
+      // "no results" for your OWN name is the other way to read this as broken:
+      // you are excluded from your own search results by design, so say so
+      : (((loadProfile()||{}).handle||"").toLowerCase().includes(q.toLowerCase())
+        ? `<div class="muted" style="font-size:12.5px; margin-top:6px">That's your own name — search for someone else's.</div>`
+        : `<div class="muted" style="font-size:12.5px; margin-top:6px">Nobody called “${esc(q)}” is playing yet.</div>`);
   };
   now ? go() : (_findT = setTimeout(go, 300));
 }

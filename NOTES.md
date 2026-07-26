@@ -90,7 +90,20 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
-- **Find friends by name** (same release): `action:"find"`, **prefix-only**,
+- **Search fix: match anywhere in the name** (4.32.1 — Sam: "search player by
+  name does not seem to work"). It worked mechanically; the RULES were wrong.
+  Reproduced with a new full-stack suite `test/findplayers.js` (real index.html
+  ↔ real worker.js over a better-sqlite3 D1 — no network stubs, because the
+  stubbed uichrome test passed happily while the feature was unusable). Two
+  ways it read as broken: (a) `pinguin` found nothing for `TurboPinguin` —
+  prefix-only was also near-useless as anti-scraping (676 two-letter prefixes
+  enumerate the table as well as substrings do; the real limits are the per-IP
+  rate limiter and the cap of 8, and handles are public on the world board
+  anyway) → now `%q%` with prefix matches still ranked first; (b) searching your
+  OWN name returns nothing because you're excluded by design → the empty state
+  now says "That's your own name" instead of a blank not-found. Lesson repeat:
+  a stubbed test proves the wiring, not the feature.
+- **Find friends by name** (4.32.0): `action:"find"`, originally prefix-only,
   capped at 8, self-excluded, LIKE wildcards escaped. Handles are already public
   (they carry the world daily board) so this leaks nothing new — but substring
   search over a growing table is a directory scraper, hence prefix-only. Results

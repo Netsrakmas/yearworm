@@ -435,20 +435,23 @@ async function handleSocialPost(env, b, cors, ctx){
     return socialState(env, me, cors);
   }
 
-  // Find players by name. Handles are already public (they carry the world daily
-  // board), so this exposes nothing new — but it is PREFIX-only and capped at 8,
-  // because a substring search over a growing table is a directory-scraping tool.
+  // Find players by name. Matches ANYWHERE in the handle: "pinguin" has to find
+  // "TurboPinguin", or the player concludes the search is broken (it did — Sam
+  // reported exactly that). Prefix-only was near-useless as an anti-scraping
+  // measure anyway: 676 two-letter prefixes enumerate the whole table just as
+  // well as substrings do. The real limits are the per-IP rate limiter and the
+  // cap of 8 — and handles are already public on the world daily board.
+  // Prefix matches still rank first, because that IS what you usually mean.
   if(action === "find"){
     const q = String(b.q || "").trim().slice(0, 20);
     if(q.length < 2) return json({ results: [] }, 200, cors);
-    const like = q.replace(/[%_\\]/g, m => "\\" + m) + "%";
+    const esc = q.replace(/[%_\\]/g, m => "\\" + m);
+    const any = "%" + esc + "%", pre = esc + "%";
+    const sel = (cols) => "SELECT " + cols + " FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?3 " +
+      "ORDER BY (CASE WHEN handle LIKE ?2 ESCAPE '\\' THEN 0 ELSE 1 END), handle LIMIT 8";
     let rows = [];
-    try{ rows = (await env.DB.prepare(
-      "SELECT id, handle, avatar FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?2 ORDER BY handle LIMIT 8"
-    ).bind(like, me.id).all()).results || []; }
-    catch(e){ rows = (await env.DB.prepare(
-      "SELECT id, handle FROM users WHERE handle LIKE ?1 ESCAPE '\\' AND id <> ?2 ORDER BY handle LIMIT 8"
-    ).bind(like, me.id).all()).results || []; }
+    try{ rows = (await env.DB.prepare(sel("id, handle, avatar")).bind(any, pre, me.id).all()).results || []; }
+    catch(e){ rows = (await env.DB.prepare(sel("id, handle")).bind(any, pre, me.id).all()).results || []; }
     // annotate with the existing relationship so the UI offers the right button
     // instead of letting someone re-request a friend they already have
     const rel = {};
