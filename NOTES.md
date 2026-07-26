@@ -90,6 +90,20 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Search fix 3: a FAILED search is not "she doesn't exist"** (4.32.3 — Sam:
+  "staat nog steeds dat ze niet bestaat"). The real defect, and it outranks both
+  earlier fixes: `findPlayers` rendered the not-found message whenever the POST
+  didn't return results — including on **429 and network failure**. So a
+  rate-limited search stated, confidently, that the person has no account.
+  Root cause of the 429s: `limited(ip)` was **30/min per IP across every social
+  endpoint**, set when a screen made one call. The Ranks tab now fires four
+  (social state + daily + both survival windows), typing a name adds more, and a
+  household/office shares one IP — so ordinary use throttled itself. Raised to
+  **90/min** (cheap reads; still bounds scraping) AND the client now separates
+  failure from empty, with a "↻ Try again". findplayers.js §6 forces a 429 and
+  an aborted request and asserts the copy never claims the player is missing.
+  NOTE: I could not query production from this environment (proxy blocks
+  workers.dev) — this was found by reproducing locally against the real worker.
 - **Search fix 2: per-WORD matching** (4.32.2 — Sam: "ik zoek Carmen Sophie maar
   vind haar niet"). 4.32.1 matched the whole query as one substring, so typing
   someone's full name found nothing when their handle is only part of it

@@ -34,7 +34,12 @@ function limited(ip){
   h.n++;
   hits.set(ip, h);
   if(hits.size > 10000) hits.clear();
-  return h.n > 30;
+  // 30/min was set when a screen made one call. The Ranks tab alone now fires
+  // four (social state + daily board + both survival windows), typing a name
+  // adds more, and a household or office shares one IP — so 30 was throttling
+  // ordinary use and, worse, the failures read as "that player doesn't exist".
+  // These are cheap reads; 90 still bounds any scraping worth the name.
+  return h.n > 90;
 }
 
 async function board(env, day, device, cors){

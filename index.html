@@ -488,7 +488,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.32.2";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.32.3";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5545,7 +5545,17 @@ function findPlayers(q, now){
     const r = await socialPost({ action:"find", q });
     if(seq !== _findSeq) return;                     // a newer search already ran
     const el = document.getElementById("findOut"); if(!el) return;
-    const res = (r && r.ok && r.body && r.body.results) || [];
+    // A FAILED search is not an answer. Reporting "nobody by that name" when the
+    // request never landed tells the player their friend has no account — which
+    // is exactly how this got reported, because the per-IP limit covers every
+    // social call and a few tab switches plus typing can reach it.
+    if(!r || !r.ok){
+      el.innerHTML = `<div class="muted" style="font-size:12.5px; margin-top:6px">${
+        r && r.status === 429 ? "Too many requests just now — wait a few seconds." : "Search didn't go through — check your connection."
+      } <button class="btn ghost sm" style="margin-left:6px" onclick="findPlayers(document.getElementById('findIn').value,1)">↻ Try again</button></div>`;
+      return;
+    }
+    const res = (r.body && r.body.results) || [];
     el.innerHTML = res.length ? res.map(p => `<div class="row" style="justify-content:space-between; align-items:center; gap:8px; margin-top:7px">
         <span style="display:inline-flex; gap:9px; align-items:center; min-width:0">
           <span class="avatar" aria-hidden="true">${avatarFor(p.avatar, p.handle)}</span>

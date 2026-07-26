@@ -137,6 +137,25 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
   if(h9[0] !== 'Sophie de Vries') throw new Error('fullest match should lead: '+JSON.stringify(h9));
   console.log('ranking: the handle matching most words comes first OK');
 
+  // 6) A FAILED search must never be reported as "that person doesn't exist".
+  // The per-IP rate limiter is 30/min across every social endpoint, and typing
+  // burns several — so someone testing repeatedly sits at 429 and is told,
+  // confidently and wrongly, that their friend has no account.
+  await sam.pg.route(/\/social/, r => r.fulfill({ status:429, contentType:'application/json',
+    headers:{'Access-Control-Allow-Origin':'*'}, body:JSON.stringify({error:'slow down'}) }));
+  const r429 = await search('Carmen');
+  if(/claimed a name|Nobody|No “/.test(r429))
+    throw new Error('a rate-limited search claims the player does not exist: "'+r429+'"');
+  if(!/again/i.test(r429)) throw new Error('rate-limited search gives no way forward: "'+r429+'"');
+  console.log('rate-limited search → says the search failed, not that she is missing OK');
+
+  await sam.pg.route(/\/social/, r => r.abort());
+  const rOff = await search('Carmen');
+  if(/claimed a name|Nobody|No “/.test(rOff))
+    throw new Error('an offline search claims the player does not exist: "'+rOff+'"');
+  console.log('offline search → says the search failed, not that she is missing OK');
+  await sam.pg.unroute(/\/social/);
+
   console.log('FIND PLAYERS TEST PASS ✓');
 
   await browser.close(); server.close();
