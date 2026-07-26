@@ -90,6 +90,19 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Share the daily from the leaderboard** (4.36.0 — Sam: "consistenter"). The
+  survival board's own row was tappable → `shareSurvival()`, the daily board's
+  wasn't. Now both work the same: your row on the daily board (and the >10
+  `meLine`) taps through to `shareDaily()` and shows the share icon in `.bactn`.
+  Guarded on `dailyPlayedToday()` — `shareDaily()` reads the LOCAL daily record,
+  which is stale on a device that hasn't played today, so the control only
+  appears once there's something real to share.
+  Found while here: the survival row had **two `style=` attributes** on one
+  element (the base one plus `style="cursor:pointer"` in the mine-branch). The
+  parser keeps the first and drops the second, so the tappable row never looked
+  tappable. Folded into the first attribute on both boards.
+  uichrome §5b-1c asserts the control is absent before playing, present after,
+  and that tapping it emits the real daily text (squares + "Yearworm Daily").
 - **Leaderboard columns fixed** (4.35.1 — Sam: "het is bij mij een beetje gek
   uitgelijnd"). The trailing control is a ✓, +, ⏳, ?, share icon or nothing —
   all different widths, and it sat directly after a `flex:0 0 auto` score, so

@@ -160,6 +160,29 @@ const server = http.createServer((req,res)=>{
   if(marks.join('|') !== '|✓|+|⏳|?') throw new Error('wrong per-row controls: '+JSON.stringify(marks));
   console.log('board columns: scores and actions each share one edge, one mark per state OK');
 
+  // 5b-1c) sharing must work the SAME way on both boards — your own row is
+  // tappable on the daily too, not just on survival
+  let shareTxt = null;
+  await pg.exposeFunction('__shr', s=>{shareTxt=s;}).catch(()=>{});
+  await pg.evaluate(()=>{ navigator.share = d => { window.__shr(d.text); return Promise.resolve(); }; });
+  const noPlay = await pg.$('#ranksDaily [aria-label="Share your daily result"]');
+  if(noPlay) throw new Error('offered a daily share before this device played today');
+  await pg.evaluate(()=>{   // record today's daily locally, then repaint
+    const d = { last: localDay(0), num: dailyNumber(), score:4, timeMs:31000, streak:3,
+                results:[1,1,0,1,1], idx:[3,9,14,22,31] };
+    store.set('tl_daily', JSON.stringify(d));
+    paintRanks();
+  });
+  const myRow = await pg.$('#ranksDaily [aria-label="Share your daily result"]');
+  if(!myRow) throw new Error('own daily row is not shareable');
+  if(!/svg/.test(await pg.$eval('#ranksDaily .bactn', e=>e.innerHTML)))
+    throw new Error('own daily row shows no share icon');
+  await myRow.click();
+  await pg.waitForTimeout(300);
+  if(!/Yearworm Daily/.test(shareTxt||'') || !/🟩/.test(shareTxt||''))
+    throw new Error('daily share from the board sent the wrong text: '+shareTxt);
+  console.log('daily board: own row shares the daily (hidden until you played) OK');
+
   // 5b-2) friends survival card: hidden with no friends, filled in by the LATE
   // socialGet (it must not depend on _social being ready at first render)
   if(await pg.$('#ranksSurvFrWrap .card')) throw new Error('friends survival card shown with no friends');

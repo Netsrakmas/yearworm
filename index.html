@@ -495,7 +495,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.35.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.36.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -7447,7 +7447,10 @@ function ranksSurvWorldHTML(b, emptyMsg){
   const meRank = b.me && b.me.rank;
   const rows = b.top.slice(0,10).map((t,i)=>{
     const rank = i+1, top3 = rank<=3, mine = b.me && t.nick===b.me.nick && rank===meRank;
-    return `<div class="row" style="align-items:center; gap:8px; padding:7px 2px; ${i?'border-top:1px solid var(--line)':''}" ${mine?`role="button" tabindex="0" onclick="shareSurvival(${t.score})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="cursor:pointer" aria-label="Share your survival run"`:''}>
+    // NB: cursor:pointer belongs in the FIRST style attribute — a second style=
+    // on the same element is dropped by the parser, so the tappable row never
+    // actually looked tappable.
+    return `<div class="row" style="align-items:center; gap:8px; padding:7px 2px; ${i?'border-top:1px solid var(--line)':''}${mine?'; cursor:pointer':''}" ${mine?`role="button" tabindex="0" onclick="shareSurvival(${t.score})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="Share your survival run"`:''}>
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
@@ -7510,20 +7513,26 @@ function ranksTabHTML(){
 function ranksBoardHTML(b){
   if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:13.5px">Play today's daily to join the worldwide board.</div>`;
   const meRank = b.me && b.me.rank;
+  // your own row shares the daily, exactly as the survival board shares a run —
+  // same gesture in both places instead of one board being tappable and the
+  // other inert. Guarded on dailyPlayedToday(): shareDaily() reads the LOCAL
+  // record, which is stale if this device didn't play today.
+  const canShare = dailyPlayedToday();
   const rows = b.top.slice(0,10).map((t,i)=>{
     const rank = i+1, top3 = rank<=3, mine = b.me && t.nick===b.me.nick && rank===meRank;
-    return `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; ${i?'border-top:1px solid var(--line)':''}">
+    const tap = mine && canShare;
+    return `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; ${i?'border-top:1px solid var(--line)':''}${tap?'; cursor:pointer':''}" ${tap?`role="button" tabindex="0" onclick="shareDaily()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="Share your daily result"`:''}>
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${top3?'var(--gold)':'var(--faint)'}">${top3?['🥇','🥈','🥉'][i]:rank}</span>
       <span class="avatar sm ${mine?'me':''}" aria-hidden="true">${mine?myAvatar():avatarFor(t.avatar, t.nick)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${mine?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(t.nick)}${mine?' (you)':''}</b>
       <span class="bscore">${t.score}/${RUN_LEN}</span>
-      <span class="bactn">${mine?'':boardAddBtn(t.id, t.nick)}</span></div>`;
+      <span class="bactn">${tap ? ico('share',1) : (mine ? '' : boardAddBtn(t.id, t.nick))}</span></div>`;
   }).join("");
-  const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; border-top:1px solid var(--line); margin-top:4px">
+  const meLine = (b.me && meRank>10) ? `<div class="row" style="align-items:center; gap:8px; padding:8px 2px; border-top:1px solid var(--line); margin-top:4px${canShare?'; cursor:pointer':''}" ${canShare?`role="button" tabindex="0" onclick="shareDaily()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="Share your daily result"`:''}>
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:var(--gold)">#${meRank}</span>
       <span class="avatar sm me" aria-hidden="true">${myAvatar()}</span>
       <b style="flex:1; color:var(--gold)">You</b>
-      <span class="bscore">${b.me.score}/${RUN_LEN}</span><span class="bactn"></span></div>` : ``;
+      <span class="bscore">${b.me.score}/${RUN_LEN}</span><span class="bactn">${canShare?ico('share',1):''}</span></div>` : ``;
   const pct = b.me && b.total ? Math.max(1, Math.round(meRank / b.total * 100)) : null;
   return `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} played today${b.me?` · you're #${meRank}${pct?` · top ${pct}%`:``}`:''}</div>${rows}${meLine}`;
 }
