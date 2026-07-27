@@ -90,6 +90,16 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Equal board row heights** (4.37.1 — Sam: "niet alle rows zijn even hoog").
+  `.btn.sm` carries `min-height:40px` (a thumb-sized tap target everywhere else
+  in the app), so a row ending in a real button stood ~10px taller than one
+  ending in a ✓/⏳ span or the share svg — the list visibly stepped. Inside
+  `.bactn` the button is now sized by the cell (28px, no min-height, padding 0)
+  and its tap target is restored by an invisible `::after {inset:-10px -8px}`,
+  which costs no layout: measured 46×48. uichrome now asserts max−min row height
+  ≤ 1px (the 1px IS the first row's missing border-top) AND that the overlay
+  keeps the hit box ≥44px, so shrinking the button can never quietly shrink the
+  target.
 - **Lookups go through the Worker, with a shared cache** (4.37.0 — the REAL fix
   for the iPhone daily failures; 4.30.0's client-side mitigations weren't
   enough). Screenshot evidence: "Finding previews · 9/10" then the error — the

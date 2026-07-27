@@ -158,7 +158,21 @@ const server = http.createServer((req,res)=>{
   if(new Set(edges.actn).size !== 1) throw new Error('action column is ragged: '+JSON.stringify(edges.actn));
   const marks = await pg.$$eval('#ranksDaily .bactn', els=>els.map(e=>e.textContent.trim()));
   if(marks.join('|') !== '|✓|+|⏳|?') throw new Error('wrong per-row controls: '+JSON.stringify(marks));
-  console.log('board columns: scores and actions each share one edge, one mark per state OK');
+  // …and every row must be the SAME HEIGHT whatever its mark. .btn.sm carries
+  // min-height:40px for thumbs, so rows with a real button used to stand taller
+  // than rows with a ✓ or an hourglass and the list visibly jumped.
+  const heights = await pg.$$eval('#ranksDaily .row', els=>els.map(e=>Math.round(e.getBoundingClientRect().height)));
+  const spread = Math.max(...heights) - Math.min(...heights);
+  if(spread > 1) throw new Error('board rows differ in height by '+spread+'px: '+JSON.stringify(heights));
+  // the compact button must still be a real tap target (the hit area is an
+  // invisible overlay, so measure the ::after box, not the button)
+  const hit = await pg.$eval('#ranksDaily .bactn .btn', e=>{
+    const r = e.getBoundingClientRect(), a = getComputedStyle(e, '::after');
+    const px = v => Math.abs(parseFloat(v) || 0);
+    return { w: r.width + px(a.left) + px(a.right), h: r.height + px(a.top) + px(a.bottom) };
+  });
+  if(hit.w < 44 || hit.h < 44) throw new Error('board button tap target too small: '+JSON.stringify(hit));
+  console.log('board rows: one edge per column, equal heights, 44px+ tap targets OK');
 
   // 5b-1c) sharing must work the SAME way on both boards — your own row is
   // tappable on the daily too, not just on survival
