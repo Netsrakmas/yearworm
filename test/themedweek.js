@@ -42,7 +42,7 @@ let tid=1;
     // song lookups go through the API host now; this stub has no catalogue, so
     // report ok:false and let the client resolve them directly via JSONP
     const body = /\/lookup/.test(route.request().url())
-      ? { results: [], ok: false } : { ok:true, total:1, me:null, top:[] };
+      ? { results: [], pick: null, ok: false } : { ok:true, total:1, me:null, top:[] };
     route.fulfill({contentType:'application/json', body: JSON.stringify(body),
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}});
   });

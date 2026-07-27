@@ -45,6 +45,74 @@ function limited(ip, max, bucket){
   return h.n > 90;
 }
 
+/* ---------- version picking ----------
+   PORTED VERBATIM from index.html. The SERVER picks the version now, so that
+   one algorithm decides for everyone; the client keeps its copy only for the
+   fallback path (Worker unreachable → straight to Apple).
+   Two copies is a real hazard: if they drift, a player hears a different
+   recording depending on which path answered, and nobody would notice for
+   weeks. test/pickparity.js extracts BOTH copies and runs them over the same
+   fixtures — it fails on any divergence. Change one, change the other. */
+function norm(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
+function yearOf(releaseDate){ const y = parseInt(String(releaseDate||"").slice(0,4),10); return y||null; }
+const BADVER = /karaoke|tribute|made famous|originally performed|as made popular|8[\- ]?bit|lullaby|meditation|piano tribute/i;
+// compare on the CORE title: "(feat. …)" / "[Club Mix]" suffixes off. Apple's
+// canonical track is often "Title (feat. X)", which never matched exactly and
+// could tie with a DIFFERENT same-artist song whose short title is a substring
+// (want "I Like to Move It": real "…(feat. The Mad Stuntman)" and other track
+// "Move It!" both scored 1 — iTunes result order then decided the audio).
+function coreNorm(s){
+  return norm(String(s||"")
+    .replace(/\(.*?\)|\[.*?\]/g, " ")                 // "(feat. X)" / "[Club Mix]"
+    .replace(/\b(feat\.?|ft\.?|featuring)\b.*$/i, " ")); // unbracketed "feat. X" tails
+}
+// versions that defeat the GAME, not just taste: an instrumental has no voice
+// to recognize, sped-up/slowed uploads distort the era. HARD-reject these —
+// unless the curated title itself asks for one.
+const NOVOCAL = /\b(instrumental|sped[- ]?up|slowed(?:\s*(?:\+|and|&)\s*reverb)?|8d audio|nightcore)\b/i;
+// versions that are merely OFF (live, acoustic, covers, remixes): penalized so
+// any clean take wins, but still allowed as a last resort — a live cut of the
+// right song beats no song. "unless wanted" guard: "Live Is Life" stays fine.
+const OFFVER = /\b(live|acoustic|unplugged|demo|remix|cover|re-?recorded|orchestral|reprise|version)\b/i;
+// extended / club / 12" mixes: technically the right song, but their 30s preview
+// is usually an instrumental build-up — the radio edit's clip lands on the hook.
+// Penalized (any shorter cut wins) and reinforced by a track-length preference.
+const LONGVER = /\b(extended|club mix|12["”]|dance mix|dub|megamix|long version)\b/i;
+function pickBest(results, song){
+  const wantT = norm(song.title), wantA = norm(song.artist);
+  const wantTC = coreNorm(song.title) || wantT;
+  let best=null, bestScore=-1;
+  for(const r of results){
+    if(!r.previewUrl) continue;
+    if(BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"")) continue;
+    if(NOVOCAL.test(r.trackName||"") && !NOVOCAL.test(song.title||"")) continue;
+    const t = norm(r.trackName), tc = coreNorm(r.trackName) || t, a = norm(r.artistName);
+    let tScore = 0, aScore = 0;
+    if(t===wantT || tc===wantTC) tScore = 3;
+    else if(t.includes(wantT)||tc.includes(wantTC)) tScore = 1;             // result extends want: mixes/edits
+    else if((wantT.includes(t)||wantTC.includes(tc)) && tc.length >= wantTC.length*0.7) tScore = 1;
+    // reverse containment (result much SHORTER than want) is a wrong-song
+    // vector — "Move It!" ⊂ "I Like to Move It" — so it needs ≥70% length
+    if(a===wantA) aScore = 2; else if(a.includes(wantA)||wantA.includes(a)) aScore = 1;
+    // BOTH must match at least partially — artist-only allowed wrong-song swaps.
+    // Skipping is always better than playing the wrong song.
+    if(tScore===0 || aScore===0) continue;
+    // prefer releases from the curated era: original single/album beats a
+    // "(2010 Mixes)" reissue or sped-up upload when the text scores tie
+    const ry = yearOf(r.releaseDate);
+    const yBonus = (ry && song.year && Math.abs(ry - song.year) <= 3) ? 1 : 0;
+    const offPenalty = (OFFVER.test(r.trackName||"") && !OFFVER.test(song.title||"")) ? 2 : 0;
+    const longPenalty = (LONGVER.test(r.trackName||"") && !LONGVER.test(song.title||"")) ? 2 : 0;
+    // radio-single length (~2:20–5:30) gives the best clip; long 12"/album cuts
+    // (>6 min) usually preview an instrumental section. Nudge, don't dictate.
+    const ms = r.trackTimeMillis || 0;
+    const lenScore = ms ? (ms >= 140000 && ms <= 330000 ? 1 : ms > 390000 ? -1 : 0) : 0;
+    const score = tScore + aScore + yBonus + lenScore - offPenalty - longPenalty;
+    if(score>bestScore){ bestScore=score; best=r; }
+  }
+  return best;
+}
+
 /* ---------- iTunes lookup proxy + shared cache ----------
    Apple rate-limits its Search API per CLIENT IP. iCloud Private Relay and
    carrier CGNAT put thousands of phones behind a single egress IP, so a player
@@ -55,40 +123,94 @@ function limited(ip, max, bucket){
    worldwide, so it costs five lookups per TTL globally instead of five per
    player. Clients keep the direct JSONP path as a fallback, so this can only
    add a route to success, never remove one. */
-const PV_TTL_MS = 14 * 864e5;
+const PV_TTL_MS = 7 * 864e5;        // resolved records: Apple's preview URLs rot
 const PV_MISS_TTL_MS = 10 * 60e3;   // never bake in an empty caused by a throttle
 const PV_FIELDS = ["trackId","trackName","artistName","collectionName","releaseDate","previewUrl","trackViewUrl","trackTimeMillis"];
-async function lookupCached(env, term, limit){
+
+// null = we could not reach Apple (client should try direct); [] = Apple
+// answered but nothing usable. The difference matters: one is our problem.
+async function itunesFetch(url){
+  try{
+    const r = await fetch(url, { headers: { "User-Agent": "Yearworm/1.0 (+https://playyearworm.com)" } });
+    if(!r.ok) return null;
+    const b = await r.json();
+    return ((b && b.results) || []).map(x => {
+      const o = {}; for(const f of PV_FIELDS) if(x[f] != null) o[f] = x[f];
+      return o;
+    }).filter(x => x.previewUrl);
+  }catch(e){ return null; }
+}
+async function pvCachePut(env, key, results){
+  try{
+    await env.DB.prepare("INSERT INTO previews (term, json, at) VALUES (?1,?2,?3) " +
+      "ON CONFLICT(term) DO UPDATE SET json=excluded.json, at=excluded.at")
+      .bind(key, JSON.stringify(results), Date.now()).run();
+  }catch(e){}
+}
+async function deadSet(env, ids){
+  const out = new Set();
+  if(!ids.length) return out;
+  try{
+    const ph = ids.map((_, i) => "?" + (i + 1)).join(",");
+    for(const r of ((await env.DB.prepare("SELECT track_id FROM dead_ids WHERE track_id IN (" + ph + ")").bind(...ids).all()).results || []))
+      out.add(r.track_id);
+  }catch(e){}
+  return out;
+}
+// Resolve a search term to Apple records. Order: fresh cache → PINNED track (one
+// cheap record, and a FRESH preview url, which is why pinning also fixes clips
+// that rot mid-TTL) → full search.
+async function resolveTerm(env, term, limit){
   const key = term.toLowerCase().slice(0, 120);
   const lim = Math.min(Math.max(parseInt(limit, 10) || 8, 1), 15);
+  let pin = null;
+  try{ const p = await env.DB.prepare("SELECT track_id FROM pins WHERE term=?1").bind(key).first(); pin = p && p.track_id; }catch(e){}
+
   try{
     const row = await env.DB.prepare("SELECT json, at FROM previews WHERE term=?1").bind(key).first();
     if(row){
       const cached = JSON.parse(row.json || "[]");
       const age = Date.now() - (row.at || 0);
-      if(age < (cached.length ? PV_TTL_MS : PV_MISS_TTL_MS)) return { results: cached, ok: true };
+      if(age < (cached.length ? PV_TTL_MS : PV_MISS_TTL_MS)) return { ok: true, results: cached, pin };
     }
   }catch(e){ /* table not migrated yet — fall through to a live lookup */ }
-  let results = [], ok = false;
-  try{
-    const r = await fetch("https://itunes.apple.com/search?media=music&entity=song&limit=" + lim +
-      "&term=" + encodeURIComponent(term), { headers: { "User-Agent": "Yearworm/1.0 (+https://playyearworm.com)" } });
-    if(r.ok){
-      const b = await r.json();
-      results = ((b && b.results) || []).map(x => {
-        const o = {}; for(const f of PV_FIELDS) if(x[f] != null) o[f] = x[f];
-        return o;
-      }).filter(x => x.previewUrl);
-      ok = true;
-    }
-  }catch(e){ /* Apple unreachable from here — ok stays false so the client retries direct */ }
-  // only cache an authoritative answer; a failed fetch must not poison the term
-  if(ok) try{
-    await env.DB.prepare("INSERT INTO previews (term, json, at) VALUES (?1,?2,?3) " +
-      "ON CONFLICT(term) DO UPDATE SET json=excluded.json, at=excluded.at")
-      .bind(key, JSON.stringify(results), Date.now()).run();
-  }catch(e){}
-  return { results, ok };
+
+  if(pin){
+    const got = await itunesFetch("https://itunes.apple.com/lookup?id=" + encodeURIComponent(pin));
+    if(got === null) return { ok: false, results: [], pin };
+    if(got.length){ await pvCachePut(env, key, got); return { ok: true, results: got, pin }; }
+    // the pinned track is gone. Record it BEFORE re-searching, or the search
+    // picks the same dead track again and re-pins it — a fresh failure for
+    // every player, forever.
+    try{ await env.DB.prepare("INSERT OR IGNORE INTO dead_ids (track_id, at) VALUES (?1,?2)").bind(pin, Date.now()).run(); }catch(e){}
+    try{ await env.DB.prepare("DELETE FROM pins WHERE term=?1").bind(key).run(); }catch(e){}
+    pin = null;
+  }
+
+  const res = await itunesFetch("https://itunes.apple.com/search?media=music&entity=song&limit=" + lim +
+    "&term=" + encodeURIComponent(term));
+  if(res === null) return { ok: false, results: [], pin };
+  await pvCachePut(env, key, res);
+  return { ok: true, results: res, pin };
+}
+// The whole endpoint: resolve, then CHOOSE — and remember the choice.
+async function lookupSong(env, term, song, limit){
+  const r = await resolveTerm(env, term, limit);
+  if(!r.ok) return { ok: false, pick: null, results: [] };
+  if(!song) return { ok: true, pick: null, results: r.results };   // older client: raw list, as before
+  const key = term.toLowerCase().slice(0, 120);
+  // an existing pin decides, so the answer can't drift when Apple reshuffles
+  let pick = r.pin ? (r.results.find(x => x.trackId === r.pin) || null) : null;
+  if(!pick){
+    const dead = await deadSet(env, r.results.map(x => x.trackId).filter(x => x != null));
+    pick = pickBest(dead.size ? r.results.filter(x => !dead.has(x.trackId)) : r.results, song);
+    if(pick && pick.trackId != null) try{
+      await env.DB.prepare("INSERT INTO pins (term, track_id, at) VALUES (?1,?2,?3) " +
+        "ON CONFLICT(term) DO UPDATE SET track_id=excluded.track_id, at=excluded.at")
+        .bind(key, pick.trackId, Date.now()).run();
+    }catch(e){}
+  }
+  return { ok: true, pick, results: pick ? [pick] : [] };
 }
 
 async function board(env, day, device, cors){
@@ -742,12 +864,16 @@ export default {
       return json({ error: "slow down" }, 429, cors);
 
     if(isLookup && (req.method === "GET" || req.method === "POST")){
-      let term = "", limit = 8;
+      let term = "", limit = 8, b = null;
       if(req.method === "GET"){ term = url.searchParams.get("term") || ""; limit = url.searchParams.get("limit"); }
-      else { let b; try{ b = await req.json(); }catch(e){ b = {}; } term = String(b.term || ""); limit = b.limit; }
+      else { try{ b = await req.json(); }catch(e){ b = {}; } term = String(b.term || ""); limit = b.limit; }
       term = term.replace(/\s+/g, " ").trim().slice(0, 120);
-      if(!term) return json({ results: [], ok: true }, 200, cors);
-      return json(await lookupCached(env, term, limit), 200, cors);
+      if(!term) return json({ results: [], pick: null, ok: true }, 200, cors);
+      // title/artist/year let the SERVER choose the version. A client that
+      // sends none (an older cached build) still gets the raw list it expects.
+      const song = (b && b.title) ? { title: String(b.title).slice(0,120),
+        artist: String(b.artist || "").slice(0,120), year: parseInt(b.year, 10) || null } : null;
+      return json(await lookupSong(env, term, song, limit), 200, cors);
     }
 
     if(url.pathname === "/health") return json({ ok: true, day: dayNow(), vapid: await vapidStatus(env) }, 200, cors);
@@ -923,6 +1049,8 @@ export default {
   async scheduled(event, env, ctx){
     // lazy self-migration — harmless duplicate-column errors after the first run
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS previews (term TEXT PRIMARY KEY, json TEXT NOT NULL, at INTEGER NOT NULL)").run(); }catch(e){}
+    try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS pins (term TEXT PRIMARY KEY, track_id INTEGER NOT NULL, at INTEGER NOT NULL)").run(); }catch(e){}
+    try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS dead_ids (track_id INTEGER PRIMARY KEY, at INTEGER NOT NULL)").run(); }catch(e){}
     try{ await env.DB.prepare("DELETE FROM previews WHERE at < ?1").bind(Date.now() - PV_TTL_MS).run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE push_subs ADD COLUMN tz INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE push_subs ADD COLUMN nudged INTEGER").run(); }catch(e){}

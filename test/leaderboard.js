@@ -50,7 +50,7 @@ const server = http.createServer((req,res)=>{
     }
     // song lookups now go through the API host too — they are not board traffic
     if(/\/lookup/.test(req.url())){
-      route.fulfill({ contentType:'application/json', body: JSON.stringify({ results:[], ok:false }),
+      route.fulfill({ contentType:'application/json', body: JSON.stringify({ results:[], pick:null, ok:false }),
         headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'} });
       return;
     }

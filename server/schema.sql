@@ -140,6 +140,24 @@ CREATE TABLE IF NOT EXISTS previews (
   at   INTEGER NOT NULL
 );
 
+-- Which Apple track a search term resolves to. The SERVER picks the version
+-- (never the client: anything a phone posts can be forged, and five app
+-- versions would each pick differently), and pins it so every player from then
+-- on hears the identical recording. No TTL — a pin stands until proven dead.
+CREATE TABLE IF NOT EXISTS pins (
+  term     TEXT PRIMARY KEY,
+  track_id INTEGER NOT NULL,
+  at       INTEGER NOT NULL
+);
+
+-- Tracks Apple no longer serves a preview for. Without this the re-search after
+-- a dead pin would keep choosing the same dead track and re-pinning it — not a
+-- spin on one device, but a fresh failure for every player, forever.
+CREATE TABLE IF NOT EXISTS dead_ids (
+  track_id INTEGER PRIMARY KEY,
+  at       INTEGER NOT NULL
+);
+
 -- migrations for existing databases (run once each; harmless "duplicate"/"exists" errors are fine):
 --   wrangler d1 execute yearworm --remote --command "ALTER TABLE users ADD COLUMN avatar TEXT"
 --   wrangler d1 execute yearworm --remote --command "CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created INTEGER NOT NULL)"

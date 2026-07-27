@@ -502,7 +502,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.37.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.38.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6378,17 +6378,24 @@ let _jsonpN = 0;
 // five songs cost five lookups worldwide instead of five per player.
 // `ok:false` means the Worker itself couldn't reach Apple — only then do we try
 // direct, so this can add a route to success but never remove one.
-async function itunesSearch(term, limit){
-  if(LB.url){
-    try{
-      const r = await fetch(LB.url + "/lookup", { method:"POST", headers:{ "content-type":"application/json" },
-        body: JSON.stringify({ term, limit: limit || 8 }) });
-      // only an ok flag WITH a real array counts as an answer — a malformed or
-      // half-written reply must fall through to direct, not read as "no songs"
-      if(r.ok){ const b = await r.json(); if(b && b.ok && Array.isArray(b.results)) return b.results; }
-    }catch(e){ /* our server is down or blocked — fall through to direct */ }
-  }
-  return jsonpSearch(term, limit);
+// Ask OUR server to resolve AND choose. It pins the chosen track, so every
+// player hears the identical recording and the answer can't drift when Apple
+// reshuffles its search results. Returns:
+//   { ok:true,  hit }  — authoritative; hit may be null ("no usable version")
+//   { ok:false }       — the server couldn't reach Apple; caller goes direct
+async function serverPick(song, term, limit){
+  if(!LB.url) return { ok:false };
+  try{
+    const r = await fetch(LB.url + "/lookup", { method:"POST", headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ term, limit: limit || 8, title: song.title || song.name || "",
+                             artist: song.artist || "", year: song.year || null }) });
+    if(!r.ok) return { ok:false };
+    const b = await r.json();
+    // an ok flag alone isn't an answer — a malformed or half-written reply must
+    // fall through to direct rather than read as "this song doesn't exist"
+    if(b && b.ok && (b.pick === null || (b.pick && b.pick.previewUrl))) return { ok:true, hit: b.pick || null };
+  }catch(e){ /* our server is down or blocked */ }
+  return { ok:false };
 }
 function jsonpSearch(term, limit){
   limit = limit || 8;
@@ -6559,19 +6566,25 @@ async function resolveBatch(slice){
     // cache first: no request at all for songs this device already resolved
     const cached = pvGet(sg);
     if(cached){ noteLookup(true); return { sg, hit: cached }; }
-    let res = [];
     // sg.q: optional per-song search override to steer Apple toward a specific
     // cut (e.g. "radio edit") when the default artist+title returns a bad clip
     const term = sg.q || (sg.artist+" "+sg.title);
+    let hit = null, answered = false;
     // three attempts with BACKOFF + jitter: an immediate retry is useless against
     // a rate-limit (the window hasn't moved), which is what iPhones behind a
     // shared egress IP mostly hit
-    for(let attempt = 0; attempt < 3 && !res.length; attempt++){
+    for(let attempt = 0; attempt < 3 && !answered; attempt++){
       if(attempt) await napTime(attempt * 700 + Math.floor(Math.random()*300));
-      try{ res = await itunesSearch(term, 10); }catch(e){}
+      const sv = await serverPick(sg, term, 10);
+      // an authoritative answer ENDS the loop even when it's "no usable
+      // version" — retrying can't conjure a track Apple doesn't have, and the
+      // spares in the deck already cover a skipped song
+      if(sv.ok){ hit = sv.hit; answered = true; break; }
+      let res = [];
+      try{ res = await jsonpSearch(term, 10); }catch(e){}   // our server is out; go direct
+      if(res.length){ hit = pickBest(res, sg); answered = true; }
     }
-    noteLookup(res.length > 0);   // feed the connection watchdog
-    const hit = pickBest(res, sg);
+    noteLookup(answered);   // feed the connection watchdog
     pvPut(sg, hit);
     return { sg, hit };
   }));

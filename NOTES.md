@@ -90,6 +90,36 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **The SERVER picks the version, and pins it** (4.38.0 — Sam: "moet het niet
+  gewoon in de decks vastliggen wat de beste versie is?"). It didn't: of 3716
+  songs only **3** had a hand-tuned `q`, so the heuristic re-decided for the
+  other 3713 on every cache miss. That's how the Silver Springs live cut and the
+  Tamperer extended mix shipped — one at a time, each needing a manual fix.
+  Instead of curating 3716 track ids by hand, the list **builds itself from real
+  play**: the first time a term is resolved anywhere in the world, the Worker
+  picks and writes `pins(term → track_id)`. Every player after that gets the
+  identical recording, and the choice can't drift when Apple reshuffles results.
+  - **Why the server picks, not the client:** anything a phone posts can be
+    forged, and a wrong pin would then apply to everyone; and five app versions
+    in the wild would each pick differently. So `pickBest` + the four filter
+    regexes were ported into worker.js. The client keeps its copy for the
+    fallback path ONLY (Worker unreachable → straight to Apple).
+  - **The loop Sam asked about is real and guarded.** A dead pin re-searches;
+    without care the search picks the same dead track and re-pins it — not a
+    spin on one device, but a fresh failure for every player forever. So the id
+    goes into `dead_ids` **before** the re-search, and dead ids are filtered out
+    of candidates. Tested both halves.
+  - **Pinning also fixes rotting clips:** a pinned term refreshes via
+    `lookup?id=` (ONE record, fresh previewUrl) instead of re-searching, so
+    `previews` TTL dropped 14d → 7d without costing more.
+  - Response is `{ok, pick, results}`. A client that sends no title (an older
+    cached build) still gets the raw list — verified, since the service worker
+    can leave a stale index.html around for a while.
+  - ⚠️ TWO COPIES OF THE PICKER NOW EXIST. `test/pickparity.js` extracts both
+    from the real sources, asserts the four regexes are character-identical, and
+    runs both over 12 fixtures (each a bug this project actually shipped),
+    checking they agree AND that the answer is right. Verified it BITES: editing
+    LONGVER in worker.js alone fails the test. **Change one, change the other.**
 - **Equal board row heights** (4.37.1 — Sam: "niet alle rows zijn even hoog").
   `.btn.sm` carries `min-height:40px` (a thumb-sized tap target everywhere else
   in the app), so a row ending in a real button stood ~10px taller than one

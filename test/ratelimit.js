@@ -110,12 +110,14 @@ const server = http.createServer((req,res)=>{
   let proxied = 0, proxyUp = true;
   await pg.route(/\/lookup$/, route=>{
     if(!proxyUp) return route.fulfill({ status:200, contentType:'application/json',
-      headers:{'Access-Control-Allow-Origin':'*'}, body:JSON.stringify({ results:[], ok:false }) });
+      headers:{'Access-Control-Allow-Origin':'*'}, body:JSON.stringify({ results:[], pick:null, ok:false }) });
     proxied++;
-    const term = (JSON.parse(route.request().postData()||'{}').term)||'x';
+    // the server now CHOOSES and returns a single pick
+    const b = JSON.parse(route.request().postData()||'{}');
+    const pick = { trackId:++tid, trackName:b.title||b.term, artistName:b.artist||b.term,
+      collectionName:'T', releaseDate:'1999-01-01', previewUrl:'http://localhost:8106/clip.wav', trackTimeMillis:210000 };
     route.fulfill({ status:200, contentType:'application/json', headers:{'Access-Control-Allow-Origin':'*'},
-      body: JSON.stringify({ ok:true, results:[{ trackId:++tid, trackName:term, artistName:term,
-        collectionName:'T', releaseDate:'1999-01-01', previewUrl:'http://localhost:8106/clip.wav', trackTimeMillis:210000 }] }) });
+      body: JSON.stringify({ ok:true, pick, results:[pick] }) });
   });
   blockUntil = Infinity;                  // every DIRECT Apple call fails again
   await pg.evaluate(()=>{ localStorage.removeItem('tl_pv'); LB.url = 'https://api.test'; });
