@@ -129,6 +129,17 @@ CREATE TABLE IF NOT EXISTS chal_owner (
   created INTEGER NOT NULL
 );
 
+-- Shared iTunes lookup cache. Apple rate-limits per CLIENT IP, and iCloud
+-- Private Relay / carrier CGNAT put thousands of phones behind one, so players
+-- get blocked before their first lookup. Going through the Worker means Apple
+-- sees one IP AND every answer is reused: the daily's five songs cost five
+-- lookups worldwide per TTL instead of five per player.
+CREATE TABLE IF NOT EXISTS previews (
+  term TEXT PRIMARY KEY,
+  json TEXT NOT NULL,
+  at   INTEGER NOT NULL
+);
+
 -- migrations for existing databases (run once each; harmless "duplicate"/"exists" errors are fine):
 --   wrangler d1 execute yearworm --remote --command "ALTER TABLE users ADD COLUMN avatar TEXT"
 --   wrangler d1 execute yearworm --remote --command "CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created INTEGER NOT NULL)"

@@ -38,9 +38,14 @@ let tid=1;
     const u=new URL(route.request().url());const cb=u.searchParams.get('callback');const term=u.searchParams.get('term')||'x';
     route.fulfill({contentType:'text/javascript',body:`${cb}(${JSON.stringify({resultCount:1,results:[{trackId:++tid,trackName:term,artistName:term,collectionName:'T',releaseDate:'1999-01-01',previewUrl:'http://localhost:8088/clip.wav'}]})})`});
   });
-  await pg.route(/lb\.test|workers\.dev/, route=>route.fulfill({contentType:'application/json',
-    body: JSON.stringify({ok:true, total:1, me:null, top:[]}),
-    headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}}));
+  await pg.route(/lb\.test|workers\.dev/, route=>{
+    // song lookups go through the API host now; this stub has no catalogue, so
+    // report ok:false and let the client resolve them directly via JSONP
+    const body = /\/lookup/.test(route.request().url())
+      ? { results: [], ok: false } : { ok:true, total:1, me:null, top:[] };
+    route.fulfill({contentType:'application/json', body: JSON.stringify(body),
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}});
+  });
   await pg.goto('http://localhost:8088/',{waitUntil:'load'});
   await pg.waitForTimeout(700);
 

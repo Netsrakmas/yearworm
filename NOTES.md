@@ -90,6 +90,38 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Lookups go through the Worker, with a shared cache** (4.37.0 — the REAL fix
+  for the iPhone daily failures; 4.30.0's client-side mitigations weren't
+  enough). Screenshot evidence: "Finding previews · 9/10" then the error — the
+  daily resolves 10 songs in batches of 3 and stops early at `S.deck.length>=2`,
+  so reaching 9/10 and still failing means **essentially every lookup failed**,
+  not one or two. Apple's limit is per CLIENT IP and iCloud Private Relay /
+  carrier CGNAT share one across thousands of phones, so this player was blocked
+  before their first lookup and no amount of client retrying could help.
+  New `POST|GET /lookup` on the Worker: checks the `previews` table (term →
+  trimmed results JSON, 14-day TTL), else fetches Apple server-side and stores
+  it. Apple now sees ONE IP, and answers are reused by everyone — the daily is
+  the same five songs worldwide, so it costs five lookups per TTL globally
+  instead of five per player. Client `itunesSearch()` tries the proxy and falls
+  back to the original JSONP (renamed `jsonpSearch`), so this can only ADD a
+  route to success.
+  Design points worth keeping: (a) `ok:false` when the Worker itself couldn't
+  reach Apple, so the client retries direct instead of trusting an empty; a
+  failed fetch is never cached, and a genuine empty gets only a 10-minute TTL so
+  a throttle can't be baked in as "this song doesn't exist". (b) The client only
+  trusts `ok:true` **with an array** — a malformed reply falls through to direct
+  (caught by the themedweek stub, which answered ok:true with no results and
+  silently killed every song). (c) `/lookup` has its OWN per-IP budget (300/min,
+  `lookupHits`) so a ten-song game start can't be starved by social calls on a
+  shared IP. (d) Only the fields `pickBest` uses are stored.
+  ⚠️ UNVERIFIED FROM HERE: this environment's proxy blocks both Apple and
+  Cloudflare, so the Worker's outbound fetch to iTunes could not be exercised
+  against the real API — only against a stubbed `globalThis.fetch`. If Apple
+  ever blocks Cloudflare egress, `ok:false` makes clients fall back to direct.
+  Tests: worker-push-test lookup block (proxy, trim, cache-across-callers,
+  403/unreachable → ok:false + not cached, 120-call burst); ratelimit.js §6
+  (direct JSONP fully blocked + working proxy → daily starts with ZERO direct
+  Apple calls; ok:false → falls back to direct). Full 18-suite sweep green.
 - **Share the daily from the leaderboard** (4.36.0 — Sam: "consistenter"). The
   survival board's own row was tappable → `shareSurvival()`, the daily board's
   wasn't. Now both work the same: your row on the daily board (and the >10

@@ -103,6 +103,39 @@ const server = http.createServer((req,res)=>{
   if(dropped) throw new Error('pvDrop left the stale entry in the cache');
   console.log('stale preview: dropped from the cache OK');
 
+  // 6) THE REPORTED iPHONE CASE: direct JSONP to Apple is blocked for this
+  // network (Private Relay / CGNAT share the egress IP), but our server can
+  // still reach Apple. The daily must start anyway — before the lookup proxy
+  // this dead-ended at "Couldn't load today's songs" every single time.
+  let proxied = 0, proxyUp = true;
+  await pg.route(/\/lookup$/, route=>{
+    if(!proxyUp) return route.fulfill({ status:200, contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*'}, body:JSON.stringify({ results:[], ok:false }) });
+    proxied++;
+    const term = (JSON.parse(route.request().postData()||'{}').term)||'x';
+    route.fulfill({ status:200, contentType:'application/json', headers:{'Access-Control-Allow-Origin':'*'},
+      body: JSON.stringify({ ok:true, results:[{ trackId:++tid, trackName:term, artistName:term,
+        collectionName:'T', releaseDate:'1999-01-01', previewUrl:'http://localhost:8106/clip.wav', trackTimeMillis:210000 }] }) });
+  });
+  blockUntil = Infinity;                  // every DIRECT Apple call fails again
+  await pg.evaluate(()=>{ localStorage.removeItem('tl_pv'); LB.url = 'https://api.test'; });
+  const jsonpBefore = calls;
+  await pg.evaluate(()=>{ store.del('tl_daily'); backToMenu(); startDaily(); });
+  await pg.waitForSelector('.slot.active', {timeout:60000});
+  if((await pg.evaluate(()=>S.mode)) !== 'daily') throw new Error('daily did not start through the proxy');
+  if(!proxied) throw new Error('client never used the lookup proxy');
+  if(calls !== jsonpBefore) throw new Error('client still hit Apple directly ('+(calls-jsonpBefore)+' calls) when the proxy answered');
+  console.log('blocked network + working proxy: daily starts, zero direct Apple calls OK');
+
+  // …and when OUR server can't reach Apple either (ok:false), the client must
+  // still try direct rather than trusting an empty answer
+  proxyUp = false; blockUntil = calls;     // direct works again
+  const jsonpBefore2 = calls;
+  await pg.evaluate(async()=>{ S.deck=[]; S.deckSeen=new Set();
+    await resolveBatch([{title:'Fallback', artist:'Test', year:2001}]); });
+  if(calls <= jsonpBefore2) throw new Error('client trusted ok:false instead of falling back to direct');
+  console.log('proxy reports ok:false → client falls back to a direct lookup OK');
+
   await browser.close(); server.close();
   console.log('RATE LIMIT TEST PASS ✓');
 })().catch(e=>{ console.error('RATE LIMIT TEST FAIL ✗', e.message); process.exit(1); });

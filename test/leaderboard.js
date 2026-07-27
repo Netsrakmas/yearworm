@@ -48,6 +48,12 @@ const server = http.createServer((req,res)=>{
         headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'} });
       return;
     }
+    // song lookups now go through the API host too — they are not board traffic
+    if(/\/lookup/.test(req.url())){
+      route.fulfill({ contentType:'application/json', body: JSON.stringify({ results:[], ok:false }),
+        headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'} });
+      return;
+    }
     const isChal = /\/chal/.test(req.url());
     const rbody = req.method()==='POST' ? (()=>{ try{ return JSON.parse(req.postData()); }catch(e){ return {}; } })() : null;
     if(isChal){

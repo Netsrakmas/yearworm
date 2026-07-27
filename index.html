@@ -495,7 +495,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.36.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.37.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6364,7 +6364,26 @@ function reportYear(id, oldYear){
 
 /* ---------- iTunes Search (JSONP — no key, no CORS hassle) ---------- */
 let _jsonpN = 0;
-function itunesSearch(term, limit){
+// Look the song up through OUR server first. Apple's limit is per CLIENT IP and
+// iCloud Private Relay / carrier CGNAT share one across thousands of phones, so
+// a player can be blocked before their first lookup — an iPhone tester hit this
+// on every daily. The Worker also caches per term for EVERYONE, so the daily's
+// five songs cost five lookups worldwide instead of five per player.
+// `ok:false` means the Worker itself couldn't reach Apple — only then do we try
+// direct, so this can add a route to success but never remove one.
+async function itunesSearch(term, limit){
+  if(LB.url){
+    try{
+      const r = await fetch(LB.url + "/lookup", { method:"POST", headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ term, limit: limit || 8 }) });
+      // only an ok flag WITH a real array counts as an answer — a malformed or
+      // half-written reply must fall through to direct, not read as "no songs"
+      if(r.ok){ const b = await r.json(); if(b && b.ok && Array.isArray(b.results)) return b.results; }
+    }catch(e){ /* our server is down or blocked — fall through to direct */ }
+  }
+  return jsonpSearch(term, limit);
+}
+function jsonpSearch(term, limit){
   limit = limit || 8;
   return new Promise(resolve => {
     const cb = "itc_" + (++_jsonpN);

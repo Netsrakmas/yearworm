@@ -27,19 +27,68 @@ function cleanNick(n){
 
 // best-effort burst limit per isolate (D1 stays the source of truth for one-shot)
 const hits = new Map();
-function limited(ip){
+const lookupHits = new Map();          // song lookups get their own, larger budget
+function limited(ip, max, bucket){
+  const m = bucket || hits;
   const now = Date.now();
-  const h = hits.get(ip) || { n: 0, t: now };
+  const h = m.get(ip) || { n: 0, t: now };
   if(now - h.t > 60000){ h.n = 0; h.t = now; }
   h.n++;
-  hits.set(ip, h);
-  if(hits.size > 10000) hits.clear();
+  m.set(ip, h);
+  if(m.size > 10000) m.clear();
+  if(max) return h.n > max;
   // 30/min was set when a screen made one call. The Ranks tab alone now fires
   // four (social state + daily board + both survival windows), typing a name
   // adds more, and a household or office shares one IP — so 30 was throttling
   // ordinary use and, worse, the failures read as "that player doesn't exist".
   // These are cheap reads; 90 still bounds any scraping worth the name.
   return h.n > 90;
+}
+
+/* ---------- iTunes lookup proxy + shared cache ----------
+   Apple rate-limits its Search API per CLIENT IP. iCloud Private Relay and
+   carrier CGNAT put thousands of phones behind a single egress IP, so a player
+   who has looked up nothing can be blocked before their first song — which is
+   exactly what an iPhone tester hit on the daily, over and over.
+   Going through the Worker fixes both halves at once: Apple sees our IP, and
+   every answer is cached for EVERYONE. The daily is the same five songs
+   worldwide, so it costs five lookups per TTL globally instead of five per
+   player. Clients keep the direct JSONP path as a fallback, so this can only
+   add a route to success, never remove one. */
+const PV_TTL_MS = 14 * 864e5;
+const PV_MISS_TTL_MS = 10 * 60e3;   // never bake in an empty caused by a throttle
+const PV_FIELDS = ["trackId","trackName","artistName","collectionName","releaseDate","previewUrl","trackViewUrl","trackTimeMillis"];
+async function lookupCached(env, term, limit){
+  const key = term.toLowerCase().slice(0, 120);
+  const lim = Math.min(Math.max(parseInt(limit, 10) || 8, 1), 15);
+  try{
+    const row = await env.DB.prepare("SELECT json, at FROM previews WHERE term=?1").bind(key).first();
+    if(row){
+      const cached = JSON.parse(row.json || "[]");
+      const age = Date.now() - (row.at || 0);
+      if(age < (cached.length ? PV_TTL_MS : PV_MISS_TTL_MS)) return { results: cached, ok: true };
+    }
+  }catch(e){ /* table not migrated yet — fall through to a live lookup */ }
+  let results = [], ok = false;
+  try{
+    const r = await fetch("https://itunes.apple.com/search?media=music&entity=song&limit=" + lim +
+      "&term=" + encodeURIComponent(term), { headers: { "User-Agent": "Yearworm/1.0 (+https://playyearworm.com)" } });
+    if(r.ok){
+      const b = await r.json();
+      results = ((b && b.results) || []).map(x => {
+        const o = {}; for(const f of PV_FIELDS) if(x[f] != null) o[f] = x[f];
+        return o;
+      }).filter(x => x.previewUrl);
+      ok = true;
+    }
+  }catch(e){ /* Apple unreachable from here — ok stays false so the client retries direct */ }
+  // only cache an authoritative answer; a failed fetch must not poison the term
+  if(ok) try{
+    await env.DB.prepare("INSERT INTO previews (term, json, at) VALUES (?1,?2,?3) " +
+      "ON CONFLICT(term) DO UPDATE SET json=excluded.json, at=excluded.at")
+      .bind(key, JSON.stringify(results), Date.now()).run();
+  }catch(e){}
+  return { results, ok };
 }
 
 async function board(env, day, device, cors){
@@ -685,7 +734,21 @@ export default {
     const cors = corsHeaders(req.headers.get("Origin"));
     if(req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const ip = req.headers.get("CF-Connecting-IP") || "?";
-    if(limited(ip)) return json({ error: "slow down" }, 429, cors);
+    // song lookups are cheap, cached, and come in bursts of ten at game start —
+    // they get their own budget so they can't starve (or be starved by) the
+    // social calls sharing an office/household IP
+    const isLookup = url.pathname === "/lookup";
+    if(isLookup ? limited(ip, 300, lookupHits) : limited(ip))
+      return json({ error: "slow down" }, 429, cors);
+
+    if(isLookup && (req.method === "GET" || req.method === "POST")){
+      let term = "", limit = 8;
+      if(req.method === "GET"){ term = url.searchParams.get("term") || ""; limit = url.searchParams.get("limit"); }
+      else { let b; try{ b = await req.json(); }catch(e){ b = {}; } term = String(b.term || ""); limit = b.limit; }
+      term = term.replace(/\s+/g, " ").trim().slice(0, 120);
+      if(!term) return json({ results: [], ok: true }, 200, cors);
+      return json(await lookupCached(env, term, limit), 200, cors);
+    }
 
     if(url.pathname === "/health") return json({ ok: true, day: dayNow(), vapid: await vapidStatus(env) }, 200, cors);
 
@@ -859,6 +922,8 @@ export default {
   // ≥ 1) but not today get one push: "your streak is on the line".
   async scheduled(event, env, ctx){
     // lazy self-migration — harmless duplicate-column errors after the first run
+    try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS previews (term TEXT PRIMARY KEY, json TEXT NOT NULL, at INTEGER NOT NULL)").run(); }catch(e){}
+    try{ await env.DB.prepare("DELETE FROM previews WHERE at < ?1").bind(Date.now() - PV_TTL_MS).run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE push_subs ADD COLUMN tz INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE push_subs ADD COLUMN nudged INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE users ADD COLUMN sbest INTEGER").run(); }catch(e){}
