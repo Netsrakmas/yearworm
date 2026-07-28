@@ -90,6 +90,26 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **KNOWN GAP: 93 songs Apple answers but pickBest rejects** (parked by Sam,
+  "laat maar even zo"). A third harvest run resolved 0 of them — so it is NOT
+  rate limiting: Apple returns results and our own matcher throws them away.
+  Cause: `pickBest` requires BOTH title and artist to match, and these songs are
+  credited differently in Apple's catalogue than in our decks. Demonstrated
+  against the real matcher:
+  `Hall & Oates` vs `Daryl Hall & John Oates` → reject (normalises to
+  `hall oates`, which isn't a contiguous substring of `daryl hall john oates`);
+  `Wham!` vs `George Michael` (Careless Whisper) → reject; `Martha and the
+  Vandellas` vs `Martha Reeves & The Vandellas` → reject; `Ke$ha` vs `Kesha` →
+  reject (`$`→space); `The Marcelles` → our own typo for `The Marcels`.
+  (`*NSYNC`→`NSYNC` and `JAY-Z`→`JAY Z` DO match — normalisation handles those.)
+  ⚠️ These were already being skipped during play long before the harvest; the
+  spares covered it, so nobody noticed. The harvest only made it visible.
+  If picked up later, the two options are: fix the artist names in the decks
+  (safe, but 93 hand-checks and no Apple access from the dev box), or loosen
+  artist matching to token overlap — which is exactly the knob that let the
+  Silver Springs live cut and the Tamperer 12" through. Suggested middle path:
+  allow token-overlap on the ARTIST only when the TITLE matches exactly, and
+  review the resulting 93 picks before they get pinned.
 - **previews.json is LIVE: 2113 songs** (4.39.1). Verified against the real file
   with Apple's Search API *and* the Worker cut off: catalogue coverage
   **2112/2206 (96%)**, today's daily **10/10**, daily starts, **0** Apple search
