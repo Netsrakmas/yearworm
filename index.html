@@ -502,7 +502,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.38.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.38.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6397,6 +6397,20 @@ async function serverPick(song, term, limit){
   }catch(e){ /* our server is down or blocked */ }
   return { ok:false };
 }
+// Free-text search that needs the RAW candidate list — the deck builder (you
+// pick from the results yourself) and the catalogue verifier (it runs its own
+// pickBest). Sending no title is what makes the server return the whole list
+// instead of its single pick.
+async function searchRaw(term, limit){
+  if(LB.url){
+    try{
+      const r = await fetch(LB.url + "/lookup", { method:"POST", headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ term, limit: limit || 8 }) });
+      if(r.ok){ const b = await r.json(); if(b && b.ok && Array.isArray(b.results)) return b.results; }
+    }catch(e){ /* our server is out — go direct */ }
+  }
+  return jsonpSearch(term, limit);
+}
 function jsonpSearch(term, limit){
   limit = limit || 8;
   return new Promise(resolve => {
@@ -7816,7 +7830,7 @@ async function runSearch(){
   const q = val("sq").trim();
   if(!q){ return; }
   toast("Searching…", true);
-  S.builder.results = await itunesSearch(q, 12);
+  S.builder.results = await searchRaw(q, 12);
   hideToast();
   // keep only playable, de-duped results
   const seen = new Set();
@@ -8690,7 +8704,7 @@ async function startVerify(){
   for(let i=0;i<songs.length;i+=BATCH){
     const slice = songs.slice(i, i+BATCH);
     const res = await Promise.all(slice.map(async sg => {
-      const r = await itunesSearch(sg.artist+" "+sg.title, 10);
+      const r = await searchRaw(sg.artist+" "+sg.title, 10);
       return { sg, hit: pickBest(r, sg) };
     }));
     for(const {sg,hit} of res){

@@ -90,6 +90,20 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Two dead call sites after the rename** (4.38.1): renaming `itunesSearch` in
+  4.38.0 left `runSearch()` (deck builder) and `startVerify()` (catalogue
+  checker) calling a function that no longer existed — both would throw on the
+  first search. Neither is on the daily path, so it didn't explain the iPhone
+  report, but both were broken. They need Apple's RAW candidate list (you pick
+  from the builder's menu yourself; the verifier runs its own pickBest), which
+  is exactly what the server returns when the request carries no title — so the
+  "older client" branch turned out to have a second, permanent purpose. New
+  `searchRaw()` wraps it with the direct fallback.
+  How it slipped through: after the rename I grepped for callers that don't
+  `await` — not for callers that still reference the OLD NAME. Grep for the
+  removed identifier itself. The deck builder had **zero** test coverage, which
+  is why nothing caught it; `test/builder.js` now covers search → raw list →
+  unplayable filtered → proxy-down fallback → add to deck.
 - **The SERVER picks the version, and pins it** (4.38.0 — Sam: "moet het niet
   gewoon in de decks vastliggen wat de beste versie is?"). It didn't: of 3716
   songs only **3** had a hand-tuned `q`, so the heuristic re-decided for the
