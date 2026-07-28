@@ -138,6 +138,43 @@ const server = http.createServer((req,res)=>{
   if(calls <= jsonpBefore2) throw new Error('client trusted ok:false instead of falling back to direct');
   console.log('proxy reports ok:false → client falls back to a direct lookup OK');
 
+  // 7) THE ACTUAL FIX: with previews.json shipped, a curated deck needs NO
+  // lookup at all — not Apple, not our proxy. This is the only path that works
+  // for a player Apple's Search API refuses outright, which after the 429 from
+  // Cloudflare's shared egress is every path we had left.
+  const staticBody = { v:1, audioPrefix:'http://localhost:8106/', viewPrefix:'https://music.apple.com/',
+    songs: {} };
+  let staticServed = 0;
+  await pg.route(/previews\.json/, route=>{ staticServed++;
+    route.fulfill({ status:200, contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*'}, body: JSON.stringify(staticBody) }); });
+  // key exactly as tools/harvest.js writes it: q || "artist title", lowercased
+  const daily = await pg.evaluate(()=>dailySongs(10).map(s=>({
+    k: ((s.q || (s.artist+' '+s.title))||'').toLowerCase().replace(/\s+/g,' ').trim(), t:s.title })));
+  for(const d of daily) staticBody.songs[d.k] = { u:'clip.wav', i:4242, v:'nl/song/x/1' };
+
+  proxyUp = false;            // our proxy is useless (the real 429 case)
+  blockUntil = Infinity;      // and Apple refuses this network directly
+  const apiBefore = calls, proxyBefore = proxied;
+  await pg.evaluate(()=>{ PV_STATIC=null; _pvStaticTried=false; localStorage.removeItem('tl_pv');
+    store.del('tl_daily'); backToMenu(); startDaily(); });
+  await pg.waitForSelector('.slot.active', {timeout:60000});
+  if((await pg.evaluate(()=>S.mode)) !== 'daily') throw new Error('daily did not start from the shipped previews');
+  if(!staticServed) throw new Error('previews.json was never fetched');
+  if(calls !== apiBefore) throw new Error('still called Apple directly: '+(calls-apiBefore));
+  if(proxied !== proxyBefore) throw new Error('still called the lookup proxy: '+(proxied-proxyBefore));
+  const card = await pg.evaluate(()=>S.deck[0] && S.deck[0].previewUrl);
+  if(!/clip\.wav$/.test(card||'')) throw new Error('preview url not rebuilt from the prefix: '+card);
+  console.log('shipped previews: daily starts with ZERO lookups (Apple AND proxy blocked) OK');
+
+  // a song missing from the file still falls through to the normal paths
+  const missBefore = calls;
+  blockUntil = calls;         // let direct Apple work again
+  await pg.evaluate(async()=>{ S.deck=[]; S.deckSeen=new Set();
+    await resolveBatch([{title:'NotHarvested', artist:'Someone', year:1995}]); });
+  if(calls <= missBefore) throw new Error('a song absent from previews.json must still be looked up');
+  console.log('shipped previews: an unharvested song still resolves normally OK');
+
   await browser.close(); server.close();
   console.log('RATE LIMIT TEST PASS ✓');
 })().catch(e=>{ console.error('RATE LIMIT TEST FAIL ✗', e.message); process.exit(1); });

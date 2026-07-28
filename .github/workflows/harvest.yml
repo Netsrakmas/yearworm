@@ -1,0 +1,80 @@
+name: Harvest song previews
+
+# Resolves every catalogue song to an Apple preview URL and commits
+# previews.json, so players never call Apple's Search API at play time.
+#
+# Why here and not at runtime: Apple rate-limits the Search API per client IP.
+# Phones behind iCloud Private Relay or carrier CGNAT share one and get blocked;
+# proxying through the Cloudflare Worker is worse still, because Worker egress
+# IPs are shared by every Cloudflare customer and Apple answers them with 429.
+# A scheduled job can afford to go slowly and retry, which no player can.
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max songs to resolve this run (blank = all remaining)"
+        required: false
+      refresh:
+        description: "Start over instead of resuming (refreshes stale preview URLs)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "40 3 * * 1"        # weekly, Monday 03:40 UTC — refreshes rotted URLs
+
+permissions:
+  contents: write
+
+concurrency:
+  group: harvest
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330          # a full cold run is thousands of paced calls
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install a browser (the song list comes from the app itself)
+        run: |
+          npm i -D playwright-core@1.49.1
+          npx -y playwright@1.49.1 install --with-deps chromium
+
+      - name: Resolve previews
+        env:
+          LIMIT: ${{ inputs.limit }}
+          REFRESH: ${{ inputs.refresh }}
+        run: |
+          CHROME_PATH=$(node -e "console.log(require('playwright-core').chromium.executablePath())")
+          echo "chromium: $CHROME_PATH"
+          ARGS=""
+          [ -n "$LIMIT" ] && ARGS="$ARGS --limit $LIMIT"
+          [ "$REFRESH" = "true" ] && ARGS="$ARGS --refresh"
+          CHROME_PATH="$CHROME_PATH" node tools/harvest.js $ARGS
+
+      - name: Report coverage
+        run: |
+          node -e "
+            const b=require('./previews.json');
+            const n=Object.keys(b.songs).length;
+            const kb=Math.round(require('fs').statSync('previews.json').size/1024);
+            console.log('resolved '+n+' songs · '+kb+' KB');
+            require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### previews.json: '+n+' songs, '+kb+' KB\n');
+          "
+
+      - name: Commit if it changed
+        run: |
+          git config user.name "yearworm-harvest"
+          git config user.email "noreply@anthropic.com"
+          if git diff --quiet -- previews.json; then
+            echo "no change"
+            exit 0
+          fi
+          git add previews.json
+          git commit -m "Harvest song previews ($(node -e "console.log(Object.keys(require('./previews.json').songs).length)") songs)"
+          # main is what GitHub Pages serves; the working branch keeps it too
+          git push origin HEAD:main

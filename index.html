@@ -6397,6 +6397,41 @@ async function serverPick(song, term, limit){
   }catch(e){ /* our server is down or blocked */ }
   return { ok:false };
 }
+/* ---------- pre-harvested previews (previews.json) ----------
+   Apple rate-limits its Search API per client IP, and every runtime workaround
+   failed: a phone behind Private Relay is blocked before its first lookup, and
+   routing through the Worker was WORSE (Cloudflare's egress IPs are shared by
+   every customer — Apple answers them 429 "…|general|2a06:98c0:…").
+   So the catalogue is resolved AHEAD of time by tools/harvest.js and shipped as
+   a static file. Playing a curated deck then needs no Search API at all. The
+   audio still streams from Apple's CDN, a different host that isn't limited
+   this way — which is exactly why playback already worked for players whose
+   lookups didn't. */
+let PV_STATIC = null, _pvStaticTried = false;
+async function loadStaticPreviews(){
+  if(_pvStaticTried) return PV_STATIC;
+  _pvStaticTried = true;
+  try{
+    const r = await fetch("./previews.json", { cache: "no-cache" });
+    if(r.ok){
+      const b = await r.json();
+      if(b && b.songs) PV_STATIC = b;
+    }
+  }catch(e){ /* not published yet, or offline — every other path still works */ }
+  return PV_STATIC;
+}
+function staticHit(sg){
+  if(!PV_STATIC) return null;
+  const term = (sg.q || (sg.artist + " " + sg.title) || "").toLowerCase().replace(/\s+/g," ").trim();
+  const e = PV_STATIC.songs[term];
+  if(!e || !e.u) return null;
+  return {
+    trackId: e.i || 0,
+    previewUrl: /^https?:/.test(e.u) ? e.u : (PV_STATIC.audioPrefix || "") + e.u,
+    trackViewUrl: !e.v ? "" : (/^https?:/.test(e.v) ? e.v : (PV_STATIC.viewPrefix || "") + e.v),
+    trackName: sg.title, artistName: sg.artist,
+  };
+}
 // Free-text search that needs the RAW candidate list — the deck builder (you
 // pick from the results yourself) and the catalogue verifier (it runs its own
 // pickBest). Sending no title is what makes the server return the whole list
@@ -6578,6 +6613,8 @@ const napTime = ms => new Promise(r => setTimeout(r, ms));
 async function resolveBatch(slice){
   const hits = await Promise.all(slice.map(async sg => {
     // cache first: no request at all for songs this device already resolved
+    const shipped = staticHit(sg);      // no network at all when we already know
+    if(shipped){ noteLookup(true); return { sg, hit: shipped }; }
     const cached = pvGet(sg);
     if(cached){ noteLookup(true); return { sg, hit: cached }; }
     // sg.q: optional per-song search override to steer Apple toward a specific
@@ -6616,6 +6653,7 @@ async function resolveBatch(slice){
 }
 // the first batch — must be ready before play; gentle but not slow
 async function resolveInitial(list, onProgress, enough){
+  await loadStaticPreviews();   // one fetch per session; every mode passes here
   const BATCH = 3;
   for(let i=0;i<list.length;i+=BATCH){
     await resolveBatch(list.slice(i, i+BATCH));
