@@ -1,11 +1,18 @@
-const CACHE_NAME = 'yearworm-4.39.0';
+const CACHE_NAME = 'yearworm-4.39.1';
 const ASSETS = ['./', './index.html', './manifest.json', './privacy.html', './icon-192.png', './icon-512.png', './icon-180.png'];
 
 self.addEventListener('install', event => {
   // bypass the HTTP cache while filling ours — GitHub Pages serves max-age=600,
   // so a plain addAll could seed a stale index.html as the offline copy
-  event.waitUntil(caches.open(CACHE_NAME).then(cache =>
-    cache.addAll(ASSETS.map(u => new Request(u, { cache: 'no-cache' })))));
+  event.waitUntil(caches.open(CACHE_NAME).then(async cache => {
+    await cache.addAll(ASSETS.map(u => new Request(u, { cache: 'no-cache' })));
+    // The harvested previews (~450KB) make songs playable offline and skip a
+    // round trip on every session. Cached SEPARATELY and tolerantly: inside
+    // addAll a single missing file aborts the whole install and the worker
+    // never activates — and this file is produced by a scheduled job, so a
+    // deploy that briefly lacks it must not take the app down with it.
+    try{ await cache.add(new Request('./previews.json', { cache: 'no-cache' })); }catch(e){}
+  }));
   self.skipWaiting();
 });
 

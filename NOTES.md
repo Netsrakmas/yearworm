@@ -90,6 +90,28 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **previews.json is LIVE: 2113 songs** (4.39.1). Verified against the real file
+  with Apple's Search API *and* the Worker cut off: catalogue coverage
+  **2112/2206 (96%)**, today's daily **10/10**, daily starts, **0** Apple search
+  calls, audio fetched from the CDN. 456 KB, now also precached by the service
+  worker (separately + tolerantly: inside `addAll` one missing file aborts the
+  whole install, and this file comes from a scheduled job).
+  Two runs were needed, and both failures were mine:
+  1. Run 1 resolved 725 songs and **threw them away** — the commit step tested
+     `git diff` on a file that wasn't tracked yet. Git ignores untracked files
+     there, so it said "no change". Stage first, then `git diff --cached`.
+  2. The script treated **403 as a hard error** and backed off only on 429.
+     Apple switches to 403 once it shuts you out, so after 725 songs it
+     sprinted through the remaining 1458 at 1.2s each achieving nothing. Both
+     statuses back off now, 20 consecutive failures stop the run (keeping what
+     it has, resuming next time), and pacing went 1.2s → 3.5s: run 1 averaged
+     ~29 lookups/min, which is what triggered the block — Apple tolerates ~20.
+  ⚠️ Shipping previews.json changed the TESTS: every suite serves ROOT, so songs
+  suddenly resolved from the static file and pointed at a CDN those suites don't
+  stub — silently passing (or hanging) for the wrong reason. 15 suites now
+  `route(/previews\.json/ → 404)` to keep exercising the lookup path on purpose.
+  Real catalogue is **2206 distinct songs**, not 3716 (that counted duplicates
+  across decks).
 - **Previews are HARVESTED, not looked up at play time** (4.39.0 — the actual
   fix for the iPhone, after two releases that missed). The `?debug=1` endpoint
   finally answered the question I'd been guessing at:

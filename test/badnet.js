@@ -36,6 +36,10 @@ const server = http.createServer((req,res)=>{
   const pg = await ctx.newPage();
   pg.on('pageerror',e=>console.log('PAGEERROR:',e.message));
   let tid=1, calls=0; const seen = new Map();   // term -> attempts so far
+  // previews.json now ships in the repo and every test server serves ROOT.
+  // These suites exercise the LOOKUP path, so hide it — otherwise songs
+  // resolve from the static file and point at a CDN this test doesn't stub.
+  await pg.route(/previews\.json/, r=>r.fulfill({status:404, body:''}));
   await pg.route(/itunes\.apple\.com/, route=>{
     calls++;
     const u=new URL(route.request().url());const cb=u.searchParams.get('callback');const term=u.searchParams.get('term')||'x';

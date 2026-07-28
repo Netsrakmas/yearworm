@@ -42,6 +42,10 @@ const server = http.createServer((req,res)=>{
     }
     route.fulfill({contentType:'text/javascript', body:`${cb}(${JSON.stringify({resultCount:1,results:[{trackId:++tid,trackName:term,artistName:term,collectionName:'T',releaseDate:'1999-01-01',previewUrl:'http://localhost:8106/clip.wav',trackTimeMillis:210000}]})})`});
   });
+  // previews.json now EXISTS in the repo, and the test server serves it — which
+  // would quietly resolve every song and make the lookup-failure sections pass
+  // for the wrong reason. Hide it until §7 deliberately supplies a fixture.
+  await pg.route(/previews\.json/, route=>route.fulfill({ status:404, body:'' }));
   await pg.goto('http://localhost:8106/',{waitUntil:'load'});
   await pg.waitForTimeout(600);
 

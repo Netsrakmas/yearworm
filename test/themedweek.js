@@ -34,6 +34,10 @@ let tid=1;
   const pg = await ctx.newPage();
   pg.on('pageerror',e=>console.log('PAGEERROR:',e.message));
   await pg.addInitScript(()=>{ navigator.share = t => { window.__shared = (t&&t.text)||String(t); return Promise.resolve(); }; });
+  // previews.json now ships in the repo and every test server serves ROOT.
+  // These suites exercise the LOOKUP path, so hide it — otherwise songs
+  // resolve from the static file and point at a CDN this test doesn't stub.
+  await pg.route(/previews\.json/, r=>r.fulfill({status:404, body:''}));
   await pg.route(/itunes\.apple\.com/, route=>{
     const u=new URL(route.request().url());const cb=u.searchParams.get('callback');const term=u.searchParams.get('term')||'x';
     route.fulfill({contentType:'text/javascript',body:`${cb}(${JSON.stringify({resultCount:1,results:[{trackId:++tid,trackName:term,artistName:term,collectionName:'T',releaseDate:'1999-01-01',previewUrl:'http://localhost:8088/clip.wav'}]})})`});

@@ -31,6 +31,10 @@ async function newPage(browser, url){
   const ctx = await browser.newContext({viewport:{width:540,height:1200},hasTouch:true,serviceWorkers:'block'});
   const pg = await ctx.newPage();
   pg.on('pageerror',e=>console.log('PAGEERROR:',e.message));
+  // previews.json now ships in the repo and every test server serves ROOT.
+  // These suites exercise the LOOKUP path, so hide it — otherwise songs
+  // resolve from the static file and point at a CDN this test doesn't stub.
+  await pg.route(/previews\.json/, r=>r.fulfill({status:404, body:''}));
   await pg.route(/itunes\.apple\.com/, route=>{
     const u=new URL(route.request().url());const cb=u.searchParams.get('callback');const term=u.searchParams.get('term')||'x';
     route.fulfill({contentType:'text/javascript',body:`${cb}(${JSON.stringify({resultCount:1,results:[{trackId:++tid,trackName:term,artistName:term,collectionName:'T',releaseDate:'1999-01-01',previewUrl:'http://localhost:8085/clip.wav'}]})})`});

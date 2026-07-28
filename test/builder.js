@@ -42,6 +42,10 @@ const song = (id, name) => ({ trackId:id, trackName:name, artistName:'ABBA', col
       body: JSON.stringify({ ok:true, pick:null, results:[song(1,'Waterloo'), song(2,'Mamma Mia'), song(3,'No Preview')].map(
         (s,i)=> i===2 ? Object.assign({}, s, {previewUrl:undefined}) : s) })});
   });
+  // previews.json now ships in the repo and every test server serves ROOT.
+  // These suites exercise the LOOKUP path, so hide it — otherwise songs
+  // resolve from the static file and point at a CDN this test doesn't stub.
+  await pg.route(/previews\.json/, r=>r.fulfill({status:404, body:''}));
   await pg.route(/itunes\.apple\.com/, route=>{
     jsonpCalls++;
     const u = new URL(route.request().url()), cb = u.searchParams.get('callback');
