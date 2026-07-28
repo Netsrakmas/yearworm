@@ -90,6 +90,38 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Previews are HARVESTED, not looked up at play time** (4.39.0 — the actual
+  fix for the iPhone, after two releases that missed). The `?debug=1` endpoint
+  finally answered the question I'd been guessing at:
+  `429 "Rate limit has been exceeded for: itunes-apple-com|general|2a06:98c0:3600::103"`
+  — a **Cloudflare** egress address. So routing lookups through the Worker made
+  the per-IP limit WORSE, not better: Worker egress IPs are shared by every
+  Cloudflare customer, i.e. the most-hammered IPs on the internet for this API.
+  There is no runtime path left, so we stop looking songs up while playing:
+  - `tools/harvest.js` resolves the whole catalogue from a machine Apple will
+    answer. Reuses the app's OWN picking rules (lifted from index.html, same
+    trick as pickparity) and the app's OWN song list (via Playwright →
+    `allDecks()`), so it can't drift from what the game plays. Resumable —
+    existing entries are skipped — with long backoff on 429 and an early bail
+    if nothing is getting through.
+  - `.github/workflows/harvest.yml` runs it weekly (also refreshing preview
+    URLs, which rot) and commits `previews.json` to main.
+  - Client: `loadStaticPreviews()` once per session in `resolveInitial` (every
+    mode passes through there), `staticHit()` checked BEFORE the device cache
+    and before any network. Missing songs fall through to the normal paths, so
+    a partial or absent file degrades instead of breaking.
+  - Why the audio still works for blocked players: previews stream from Apple's
+    **CDN**, a different host that isn't rate-limited this way. Only the Search
+    API refuses them — which is why playback always worked while lookups didn't.
+  - Storage: URLs are stored with their long shared prefixes stripped (~40%
+    smaller) and rebuilt client-side.
+  Tests: ratelimit.js §7 — Apple AND the proxy blocked, daily still starts with
+  ZERO lookups of either kind; plus an unharvested song still resolving.
+  Two test-isolation bugs surfaced doing this and are worth remembering:
+  §4 measured a global call counter while section 3's background loader was
+  still fetching (now tears the game down and measures each resolve separately),
+  and my §7 fixture gave every song the same trackId — the deck dedupes on
+  trackId, so ten songs collapsed into one card and the daily could never start.
 - **Two dead call sites after the rename** (4.38.1): renaming `itunesSearch` in
   4.38.0 left `runSearch()` (deck builder) and `startVerify()` (catalogue
   checker) calling a function that no longer existed — both would throw on the

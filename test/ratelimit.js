@@ -75,23 +75,32 @@ const server = http.createServer((req,res)=>{
   if(mode !== 'daily') throw new Error('retry did not start the daily, mode='+mode);
   console.log('Try again after recovery: daily starts OK');
 
-  // 4) resolved previews are cached — a second resolve makes NO api call
-  const before = calls;
-  const cachedHit = await pg.evaluate(async()=>{
+  // 4) resolved previews are cached — a second resolve makes NO api call.
+  // Section 3 left a REAL daily running, and its background loader keeps
+  // fetching songs. Tear the game down and measure each resolve separately, or
+  // this asserts on a global counter that someone else is also moving.
+  await pg.evaluate(()=>{ backToMenu(); bgRun++; S.loadingMore = false; });
+  await pg.waitForTimeout(1500);
+  const c1 = calls;
+  const wrote = await pg.evaluate(async()=>{
     const sg = { title:'CacheMe', artist:'Tester', year:1999 };
     S.deck=[]; S.deckSeen=new Set();
-    await resolveBatch([sg]);            // one real lookup, then cached
+    const added = await resolveBatch([sg]);   // one real lookup…
     const cache = JSON.parse(localStorage.getItem('tl_pv')||'{}');
     const key = Object.keys(cache).find(k=>/cacheme/.test(k));
-    S.deck=[]; S.deckSeen=new Set();
-    const added = await resolveBatch([sg]);  // must come from cache
     return { url: key && cache[key].u, added };
   });
-  const spent = calls - before;
-  if(spent !== 1) throw new Error('cache did not prevent the second lookup (api calls: '+spent+')');
-  if(!cachedHit.url) throw new Error('song was not written to the preview cache');
-  if(cachedHit.added !== 1) throw new Error('cached resolve did not produce a card: '+cachedHit.added);
-  console.log('preview cache: second resolve served from localStorage OK');
+  if(calls - c1 < 1) throw new Error('first resolve made no lookup at all');
+  if(!wrote.url) throw new Error('song was not written to the preview cache');
+  const c2 = calls;
+  const reused = await pg.evaluate(async()=>{
+    const sg = { title:'CacheMe', artist:'Tester', year:1999 };
+    S.deck=[]; S.deckSeen=new Set();
+    return await resolveBatch([sg]);          // …and this one must be free
+  });
+  if(calls - c2 !== 0) throw new Error('cache did not prevent the second lookup ('+(calls-c2)+' api calls)');
+  if(reused !== 1) throw new Error('cached resolve did not produce a card: '+reused);
+  console.log('preview cache: second resolve served from localStorage, zero calls OK');
 
   // 5) a dead clip drops its cache entry so it is never served again
   const dropped = await pg.evaluate(()=>{
@@ -151,7 +160,9 @@ const server = http.createServer((req,res)=>{
   // key exactly as tools/harvest.js writes it: q || "artist title", lowercased
   const daily = await pg.evaluate(()=>dailySongs(10).map(s=>({
     k: ((s.q || (s.artist+' '+s.title))||'').toLowerCase().replace(/\s+/g,' ').trim(), t:s.title })));
-  for(const d of daily) staticBody.songs[d.k] = { u:'clip.wav', i:4242, v:'nl/song/x/1' };
+  // distinct track ids per song: the deck dedupes on trackId, so reusing one id
+  // would collapse ten songs into a single card and the daily could never start
+  daily.forEach((d,i)=>{ staticBody.songs[d.k] = { u:'clip.wav', i:5000+i, v:'nl/song/x/'+(5000+i) }; });
 
   proxyUp = false;            // our proxy is useless (the real 429 case)
   blockUntil = Infinity;      // and Apple refuses this network directly
