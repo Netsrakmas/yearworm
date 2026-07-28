@@ -127,18 +127,39 @@ const PV_TTL_MS = 7 * 864e5;        // resolved records: Apple's preview URLs ro
 const PV_MISS_TTL_MS = 10 * 60e3;   // never bake in an empty caused by a throttle
 const PV_FIELDS = ["trackId","trackName","artistName","collectionName","releaseDate","previewUrl","trackViewUrl","trackTimeMillis"];
 
-// null = we could not reach Apple (client should try direct); [] = Apple
-// answered but nothing usable. The difference matters: one is our problem.
+// results === null means we could not reach Apple (client should try direct);
+// [] means Apple answered but had nothing usable. The difference matters: one
+// is our problem. `up` carries WHY for the ?debug=1 view — a bare "couldn't
+// reach Apple" hides whether we were blocked, throttled, or handed junk, and
+// that distinction decides what to do about it.
+let _lastUp = null;
 async function itunesFetch(url){
+  const up = { url: url.split("?")[0] };
   try{
     const r = await fetch(url, { headers: { "User-Agent": "Yearworm/1.0 (+https://playyearworm.com)" } });
-    if(!r.ok) return null;
-    const b = await r.json();
-    return ((b && b.results) || []).map(x => {
+    up.status = r.status;
+    up.ct = r.headers.get("content-type") || "";
+    if(!r.ok){
+      try{ up.sample = (await r.text()).slice(0, 200); }catch(e){}
+      _lastUp = up; return null;
+    }
+    const text = await r.text();
+    up.bytes = text.length;
+    let b = null;
+    try{ b = JSON.parse(text); }
+    catch(e){ up.note = "body is not JSON"; up.sample = text.slice(0, 200); _lastUp = up; return null; }
+    const out = ((b && b.results) || []).map(x => {
       const o = {}; for(const f of PV_FIELDS) if(x[f] != null) o[f] = x[f];
       return o;
     }).filter(x => x.previewUrl);
-  }catch(e){ return null; }
+    up.count = ((b && b.results) || []).length;
+    up.playable = out.length;
+    _lastUp = up;
+    return out;
+  }catch(e){
+    up.note = "fetch threw: " + ((e && e.message) || e);
+    _lastUp = up; return null;
+  }
 }
 async function pvCachePut(env, key, results){
   try{
@@ -869,11 +890,16 @@ export default {
       else { try{ b = await req.json(); }catch(e){ b = {}; } term = String(b.term || ""); limit = b.limit; }
       term = term.replace(/\s+/g, " ").trim().slice(0, 120);
       if(!term) return json({ results: [], pick: null, ok: true }, 200, cors);
+      // ?debug=1 (GET only) reports what Apple actually said. Non-sensitive —
+      // it only ever describes our own outbound call to a fixed host.
+      const dbg = req.method === "GET" && url.searchParams.get("debug") === "1";
       // title/artist/year let the SERVER choose the version. A client that
       // sends none (an older cached build) still gets the raw list it expects.
       const song = (b && b.title) ? { title: String(b.title).slice(0,120),
         artist: String(b.artist || "").slice(0,120), year: parseInt(b.year, 10) || null } : null;
-      return json(await lookupSong(env, term, song, limit), 200, cors);
+      _lastUp = null;
+      const out = await lookupSong(env, term, song, limit);
+      return json(dbg ? { ...out, up: _lastUp } : out, 200, cors);
     }
 
     if(url.pathname === "/health") return json({ ok: true, day: dayNow(), vapid: await vapidStatus(env) }, 200, cors);
