@@ -36,7 +36,10 @@ const args = process.argv.slice(2);
 const argN = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? Number(args[i+1]) : dflt; };
 const LIMIT   = argN('--limit', Infinity);
 const REFRESH = args.includes('--refresh');
-const PAUSE   = argN('--pause', 1200);      // ms between calls — be a good citizen
+// ~17 calls/min. The first run used 1.2s (≈29/min), got 725 songs through and
+// was then blocked for the remaining 1458 — Apple tolerates roughly 20/min.
+const PAUSE   = argN('--pause', 3500);
+const GIVE_UP_AFTER = argN('--giveup', 20);   // consecutive failures = we're blocked
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -94,10 +97,12 @@ async function fetchSearch(term){
     let r;
     try{ r = await fetch(url, { headers: { 'User-Agent': 'Yearworm-harvest/1.0 (+https://playyearworm.com)' } }); }
     catch(e){ await sleep(2000 * (attempt + 1)); continue; }
-    if(r.status === 429){
-      // the whole point of running this offline: we can afford to wait
-      const wait = Math.min(60000, 4000 * Math.pow(2, attempt));
-      process.stderr.write(`  429 — backing off ${Math.round(wait/1000)}s\n`);
+    // 403 AND 429 both mean "too much" — Apple switches to 403 once it decides
+    // to shut you out, and the first run treated that as a hard error and
+    // sprinted through 1458 songs achieving nothing.
+    if(r.status === 429 || r.status === 403){
+      const wait = Math.min(90000, 5000 * Math.pow(2, attempt));
+      process.stderr.write(`  ${r.status} — backing off ${Math.round(wait/1000)}s\n`);
       await sleep(wait);
       continue;
     }
@@ -123,20 +128,25 @@ async function fetchSearch(term){
   const todo = songs.filter(s => !out[key(s)]).slice(0, LIMIT);
   console.log('to resolve: ' + todo.length + (todo.length < songs.length ? ' (rest already done)' : ''));
 
-  let ok = 0, miss = 0, failed = 0;
+  let ok = 0, miss = 0, failed = 0, streak = 0;
   for(let i = 0; i < todo.length; i++){
     const s = todo[i];
     const term = s.q || (s.artist + ' ' + s.title);
     const res = await fetchSearch(term);
     if(res.error){
-      failed++;
+      failed++; streak++;
       process.stderr.write(`[${i+1}/${todo.length}] ${term} — ${res.error}\n`);
-      // a persistent throttle means the rest of this run is pointless; stop and
-      // let the next run resume rather than burning an hour on failures
-      if(failed >= 10 && ok === 0) { console.error('giving up: nothing is getting through'); break; }
+      // Once Apple shuts the door it stays shut for a while. Grinding through
+      // the rest of the list gains nothing and hides how far we actually got —
+      // stop, keep what we have, and let the next run resume from here.
+      if(streak >= GIVE_UP_AFTER){
+        console.error(`blocked: ${streak} failures in a row — stopping, ${ok} resolved this run`);
+        break;
+      }
       await sleep(PAUSE);
       continue;
     }
+    streak = 0;
     const hit = pickBest(res.results, s);
     if(hit && hit.previewUrl){
       out[key(s)] = {

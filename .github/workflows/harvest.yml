@@ -70,11 +70,14 @@ jobs:
         run: |
           git config user.name "yearworm-harvest"
           git config user.email "noreply@anthropic.com"
-          if git diff --quiet -- previews.json; then
+          # `git diff` ignores UNTRACKED files, so on the first run it reported
+          # "no change" and threw away 725 freshly resolved songs. Stage first,
+          # then compare against the index.
+          git add previews.json
+          if git diff --cached --quiet -- previews.json; then
             echo "no change"
             exit 0
           fi
-          git add previews.json
           git commit -m "Harvest song previews ($(node -e "console.log(Object.keys(require('./previews.json').songs).length)") songs)"
           # main is what GitHub Pages serves; the working branch keeps it too
           git push origin HEAD:main
