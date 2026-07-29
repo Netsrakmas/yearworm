@@ -90,6 +90,25 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Funnel beacons** (4.40.0): retention answers "did they come back", but after
+  a marketing push you also need "did they ever start". Three anonymous signals —
+  `land` (boot), `start` (startGame), `finish` (both run-end paths) — each fired
+  at most once per page load, plus a `-new` twin when the device has no play
+  history at all. That `-new` series is the one to read after posting somewhere:
+  landed → started → finished tells you whether a low return rate is a boring
+  game or a leaking first screen.
+  **Deliberately carries no device token and no session id** — `POST /beacon`
+  takes `{step}` and only increments `funnel(day, step, n)`. The table has no
+  column that could hold an identifier; the test asserts that and that unknown
+  steps are dropped rather than stored.
+  ⚠️ Bug I shipped and the suite caught: `try{ fetch(...) }catch{}` does NOT
+  catch a failed fetch — it REJECTS, and the unhandled rejection hit the app's
+  global error handler, showing players "Something glitched" because a *metric*
+  failed to send. Broke oneshot, tutorial and ratelimit. Always `.catch(()=>{})`
+  on the promise for fire-and-forget requests.
+  Test-harness note: in Playwright the LAST matching route wins, so registering
+  `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
+  by it and only the pre-`LB.url` one was ever seen.
 - **Retention endpoint** (`GET /stats?key=…`, owner-only). The data to answer
   "does anyone come back" has been sitting in `scores(day, device)` since launch
   and had never been queried. Reports, per mode: players ever, % who played a

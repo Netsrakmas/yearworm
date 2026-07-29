@@ -502,7 +502,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.39.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.40.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6344,6 +6344,26 @@ async function chalNews(){
 /* GoatCounter events: page views count automatically; these answer "do shared
    links convert into games?". Anonymous + cookieless; retries because the
    analytics script loads async and may land after boot. */
+/* Funnel beacons: landed → started a round → finished one. Deliberately sends
+   NO device token and no session id — the server only increments a per-day
+   tally, so this cannot follow anyone. Each step fires at most once per page
+   load. Without it a marketing push reports "3 of 100 stayed" and you can't
+   tell a boring game from a leaking first screen. */
+const _beaconed = new Set();
+function beacon(step){
+  if(!LB.url || _beaconed.has(step)) return;
+  _beaconed.add(step);
+  // "new" = this device has no record of ever having played anything
+  const fresh = !store.get("tl_life") && !store.get("tl_daily");
+  // .catch on the PROMISE, not just try/catch: a failed fetch rejects rather
+  // than throwing, and an unhandled rejection hits the global error handler —
+  // which showed players "Something glitched" because a metric didn't send.
+  const send = st => { try{ fetch(LB.url + "/beacon", { method:"POST", keepalive:true,
+    headers:{ "content-type":"application/json" }, body: JSON.stringify({ step: st }) })
+    .catch(()=>{}); }catch(e){} };
+  send(step);
+  if(fresh) send(step + "-new");
+}
 function track(name, tries){
   try{
     if(window.goatcounter && window.goatcounter.count){ window.goatcounter.count({ path:name, event:true }); return; }
@@ -6971,6 +6991,7 @@ function resumeSaved(){
 }
 
 function startGame(){
+  beacon("start");   // a round is genuinely beginning — songs resolved, deck ready
   bgRun++;   // invalidate any background loader from a previous game
   S.reactTo = null;   // reactions only belong to a run started from the inbox
   S.chalTarget = null; // auto-send only belongs to a run started via a friend's ⚔️
@@ -8092,6 +8113,7 @@ function overlayReveal(correct, p){
 }
 
 function overlayGameOver(deckEmpty, winner){
+  beacon("finish");   // a round was played through to the end
   clearGame();
   bumpLife("games");   // classic race / survival end counts as a played game
   if(S.mode==="survival"){
@@ -8151,6 +8173,7 @@ function reactTarget(){
 }
 /* ---------- run results (turbo / daily / challenge) ---------- */
 function overlayRunOver(){
+  beacon("finish");   // a round was played through to the end
   if(S.mode==="tut"){ overlayTutOver(); return; }   // safety: a dry deck mid-tutorial still ends on the tutorial sheet
   S.current = null;
   bumpLife("games");   // a finished run counts as a played game
@@ -8857,6 +8880,7 @@ function boot(){
   S.selectedIds = DECKS[0] ? [DECKS[0].id] : [];
   renderSetup();
   if(S.challenge && !chalPlayed(S.challenge.idx)) overlayChallengeInvite();
+  beacon("land");
 }
 boot();
 </script>

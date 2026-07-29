@@ -158,6 +158,17 @@ CREATE TABLE IF NOT EXISTS dead_ids (
   at       INTEGER NOT NULL
 );
 
+-- Funnel counters: how many people who LAND actually start a round, and how
+-- many finish one. Counts only — no device token, no session id, nothing that
+-- identifies anyone. Without this, a marketing push tells you "3 of 100 stayed"
+-- and you cannot tell a boring game from a leaking funnel.
+CREATE TABLE IF NOT EXISTS funnel (
+  day  INTEGER NOT NULL,
+  step TEXT NOT NULL,
+  n    INTEGER NOT NULL,
+  PRIMARY KEY (day, step)
+);
+
 -- migrations for existing databases (run once each; harmless "duplicate"/"exists" errors are fine):
 --   wrangler d1 execute yearworm --remote --command "ALTER TABLE users ADD COLUMN avatar TEXT"
 --   wrangler d1 execute yearworm --remote --command "CREATE TABLE IF NOT EXISTS push_subs (endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created INTEGER NOT NULL)"

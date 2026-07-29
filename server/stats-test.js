@@ -62,6 +62,38 @@ const fs=require('fs'); const Database=require('better-sqlite3');
   if(wrong.status!==403) throw new Error('wrong key was accepted: '+wrong.status);
   console.log('gate: disabled without STATS_KEY, 403 on a wrong key OK');
 
+  // ---- funnel: landed → started → finished ----
+  const beacon = async (step) => { const r = await w.fetch(new Request('https://x/beacon',
+    {method:'POST',headers:{'content-type':'application/json','Origin':'https://playyearworm.com','CF-Connecting-IP':'3.3.3.3'},
+     body:JSON.stringify({step})}), env, ctx); return r.status; };
+  // 10 first-timers land, 6 start a round, 3 finish it
+  for(let i=0;i<10;i++){ await beacon('land'); await beacon('land-new'); }
+  for(let i=0;i<6;i++){ await beacon('start'); await beacon('start-new'); }
+  for(let i=0;i<3;i++){ await beacon('finish'); await beacon('finish-new'); }
+  // a junk step must be ignored, not stored
+  await beacon('drop-database');
+  const f=(await (await w.fetch(new Request('https://x/stats?key=s3cret&json=1',
+    {headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.6'}}),env,ctx)).json()).funnel;
+  eq(f.fresh.land, 10, 'first-timers landed');
+  eq(f.fresh.start, 6, 'first-timers started');
+  eq(f.fresh.finish, 3, 'first-timers finished');
+  eq(f.fresh.startPct, 60, 'start rate');     // 6/10
+  eq(f.fresh.finishPct, 50, 'finish rate');   // 3/6 — of those who STARTED
+  const junk = sqlite.prepare("SELECT COUNT(*) n FROM funnel WHERE step='drop-database'").get().n;
+  eq(junk, 0, 'unknown step stored');
+  console.log('funnel: '+f.fresh.land+' landed → '+f.fresh.startPct+'% started → '+f.fresh.finishPct+'% finished, junk rejected OK');
+
+  // the beacon must carry NOTHING identifying: a device token sent anyway is
+  // never stored, and the table has no column that could hold one
+  await (await w.fetch(new Request('https://x/beacon',{method:'POST',
+    headers:{'content-type':'application/json','Origin':'https://playyearworm.com','CF-Connecting-IP':'3.3.3.4'},
+    body:JSON.stringify({step:'land', device:'a'.repeat(32), nick:'Sam'})}), env, ctx));
+  const cols = sqlite.prepare("PRAGMA table_info(funnel)").all().map(c=>c.name).sort().join(',');
+  eq(cols, 'day,n,step', 'funnel columns');
+  const dump = JSON.stringify(sqlite.prepare("SELECT * FROM funnel").all());
+  if(/aaaa|Sam/.test(dump)) throw new Error('beacon stored identifying data: '+dump);
+  console.log('beacon: stores only (day, step, count) — no token or name can be kept OK');
+
   // and the HTML view renders with no personal data in it
   const html=await (await w.fetch(new Request('https://x/stats?key=s3cret',{headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.5'}}),env,ctx)).text();
   if(!/came back/.test(html)||!/day 7/.test(html)) throw new Error('HTML view missing headline numbers');

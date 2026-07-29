@@ -42,7 +42,10 @@ const server = http.createServer((req,res)=>{
     route.fulfill({contentType:'text/javascript',body:`${cb}(${JSON.stringify({resultCount:1,results:[{trackId:++tid,trackName:term,artistName:term,collectionName:'T',releaseDate:'1999-01-01',previewUrl:'http://localhost:8085/clip.wav'}]})})`});
   });
 
-  const posts = [], gets = [], chalPosts = [], chalGets = [];
+  const posts = [], gets = [], chalPosts = [], chalGets = [], beacons = [];
+  // NB: the beacon route is registered AFTER the lb.test one below — Playwright
+  // gives the LAST matching route priority, so registering it first meant
+  // lb.test swallowed every beacon and the test saw only the pre-LB.url one.
   let chalOthers = [];   // extra players the stubbed /chal board reports
   await pg.route(/lb\.test/, route=>{
     const req = route.request();
@@ -77,6 +80,10 @@ const server = http.createServer((req,res)=>{
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'} });
   });
 
+  await pg.route(/\/beacon$/, route=>{
+    try{ beacons.push(JSON.parse(route.request().postData()||'{}')); }catch(e){}
+    route.fulfill({status:204, body:'', headers:{'Access-Control-Allow-Origin':'*'}});
+  });
   await pg.goto(base,{waitUntil:'load'});
   await pg.waitForTimeout(700);
   await pg.evaluate(()=>{ LB.url = 'https://lb.test'; });
@@ -101,6 +108,20 @@ const server = http.createServer((req,res)=>{
   if(!recapRows.every(r=>/[🟩🟥]/u.test(r) && /\d{4}/.test(r))) throw new Error('recap rows malformed: '+JSON.stringify(recapRows));
   if(await pg.$eval('#runRecap', e=>e.closest('details').open)) throw new Error('recap should start collapsed');
   console.log('per-song recap: 5 rows behind a collapsed toggle OK');
+  // funnel beacons: land → start → finish, each exactly once, and carrying
+  // nothing that identifies the player
+  const steps = beacons.map(b=>b.step);
+  for(const want of ['land','start','finish'])
+    if(steps.filter(x=>x===want).length !== 1)
+      throw new Error(want+' beacon fired '+steps.filter(x=>x===want).length+' times: '+JSON.stringify(steps));
+  if(steps.indexOf('land') > steps.indexOf('start') || steps.indexOf('start') > steps.indexOf('finish'))
+    throw new Error('beacons out of order: '+JSON.stringify(steps));
+  // this browser had never played, so the first-timer series must fire too
+  if(!steps.includes('land-new') || !steps.includes('start-new'))
+    throw new Error('first-timer series missing: '+JSON.stringify(steps));
+  for(const b of beacons) if(b.device || b.nick || Object.keys(b).length !== 1)
+    throw new Error('beacon carried more than a step: '+JSON.stringify(b));
+  console.log('funnel beacons: land→start→finish once each, no identifying data OK');
   if(!/Ace 5\/5/.test(sheet) || !/Cy 4\/5/.test(sheet)) throw new Error('top-3 missing: '+sheet.slice(0,220));
   if(posts.length!==1) throw new Error('expected 1 submit, got '+posts.length);
   const p0 = posts[0];

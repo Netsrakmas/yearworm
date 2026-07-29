@@ -878,6 +878,29 @@ async function chalBoardResp(env, setkey, device, cors){
    "did anyone come back", so this reports return rates, not vanity totals.
    Aggregate counts only — no device tokens, handles or scores leave here. */
 const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
+// "-new" = this visitor had never played anything before. That series is the
+// one that matters after a marketing push; the plain series includes regulars.
+const FUNNEL_STEPS = new Set(["land","land-new","start","start-new","finish","finish-new"]);
+async function funnelStats(env, today, days){
+  const rows = await (async()=>{ try{
+    return ((await env.DB.prepare("SELECT day, step, n FROM funnel WHERE day > ?1").bind(today - days).all()).results) || [];
+  }catch(e){ return []; } })();
+  const tot = {}, byDay = {};
+  for(const r of rows){
+    tot[r.step] = (tot[r.step] || 0) + r.n;
+    (byDay[r.day] = byDay[r.day] || {})[r.step] = r.n;
+  }
+  const g = k => tot[k] || 0;
+  return {
+    days,
+    all:   { land: g("land"),     start: g("start"),     finish: g("finish"),
+             startPct: pct(g("start"), g("land")), finishPct: pct(g("finish"), g("start")) },
+    fresh: { land: g("land-new"), start: g("start-new"), finish: g("finish-new"),
+             startPct: pct(g("start-new"), g("land-new")), finishPct: pct(g("finish-new"), g("start-new")) },
+    byDay: Object.keys(byDay).map(Number).sort((a,b)=>b-a).map(d => ({
+      day: d, land: byDay[d]["land-new"] || 0, start: byDay[d]["start-new"] || 0, finish: byDay[d]["finish-new"] || 0 })),
+  };
+}
 async function retention(env){
   const today = dayNow();
   const one = async (sql, ...b) => { try{ const r = await env.DB.prepare(sql).bind(...b).first(); return r || {}; }catch(e){ return {}; } };
@@ -922,7 +945,7 @@ async function retention(env){
     "AND handle NOT LIKE '%Gecko' AND handle NOT LIKE '%Panda' AND handle NOT LIKE '%Ferret' AND handle NOT LIKE '%Narwhal' " +
     "AND handle NOT LIKE '%Raccoon' AND handle NOT LIKE '%Badger'")).n || 0;
   const friended = (await one("SELECT COUNT(DISTINCT a) AS n FROM friends WHERE status='accepted'")).n || 0;
-  return { today, daily, survival,
+  return { today, daily, survival, funnel: await funnelStats(env, today, 14),
     profiles: { claimed, named, stillGenerated: claimed - named, withFriends: friended } };
 }
 function retentionHTML(r){
@@ -957,6 +980,18 @@ th{color:#8b95ad;font-size:11.5px;font-weight:600;text-transform:uppercase;lette
   ${big(r.survival.backPct + '%', 'came back', r.survival.back + ' of ' + r.survival.ever)}
 </div>
 <table><tr><th>day</th><th>players</th><th>new</th></tr>${r.survival.byDay.map(row).join('')}</table>
+
+<h2>First-timer funnel · last ${r.funnel.days} days</h2>
+<div class="g">
+  ${big(r.funnel.fresh.land, 'landed', 'never played before')}
+  ${big(r.funnel.fresh.startPct + '%', 'started a round', r.funnel.fresh.start + ' of ' + r.funnel.fresh.land)}
+  ${big(r.funnel.fresh.finishPct + '%', 'finished it', r.funnel.fresh.finish + ' of ' + r.funnel.fresh.start)}
+</div>
+<table><tr><th>day</th><th>landed</th><th>started</th><th>finished</th></tr>${
+  r.funnel.byDay.map(d=>`<tr><td>#${d.day}</td><td>${d.land}</td><td>${d.start}</td><td>${d.finish}</td></tr>`).join('')
+}</table>
+<div class="note">If "landed" is high and "started" is low, the problem is the
+first screen, not the game. If they start but don't finish, it's the game.</div>
 
 <h2>Profiles</h2>
 <div class="g">
@@ -1001,6 +1036,20 @@ export default {
     }
 
     if(url.pathname === "/health") return json({ ok: true, day: dayNow(), vapid: await vapidStatus(env) }, 200, cors);
+
+    // Anonymous funnel counter. Deliberately takes NO device token and no
+    // session id — it only ever increments a per-day tally, so it cannot be
+    // used to follow anyone. Each step fires at most once per page load.
+    if(url.pathname === "/beacon" && req.method === "POST"){
+      let b; try{ b = await req.json(); }catch(e){ b = {}; }
+      const step = String(b.step || "");
+      if(!FUNNEL_STEPS.has(step)) return new Response(null, { status: 204, headers: cors });
+      try{
+        await env.DB.prepare("INSERT INTO funnel (day, step, n) VALUES (?1,?2,1) " +
+          "ON CONFLICT(day, step) DO UPDATE SET n = n + 1").bind(dayNow(), step).run();
+      }catch(e){ /* table not migrated yet — a missing metric must never break a game */ }
+      return new Response(null, { status: 204, headers: cors });
+    }
 
     // Owner-only: aggregate business metrics. Disabled unless STATS_KEY is set,
     // so it can never be open by accident.
@@ -1183,6 +1232,7 @@ export default {
   async scheduled(event, env, ctx){
     // lazy self-migration — harmless duplicate-column errors after the first run
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS previews (term TEXT PRIMARY KEY, json TEXT NOT NULL, at INTEGER NOT NULL)").run(); }catch(e){}
+    try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS funnel (day INTEGER NOT NULL, step TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, step))").run(); }catch(e){}
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS pins (term TEXT PRIMARY KEY, track_id INTEGER NOT NULL, at INTEGER NOT NULL)").run(); }catch(e){}
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS dead_ids (track_id INTEGER PRIMARY KEY, at INTEGER NOT NULL)").run(); }catch(e){}
     try{ await env.DB.prepare("DELETE FROM previews WHERE at < ?1").bind(Date.now() - PV_TTL_MS).run(); }catch(e){}
