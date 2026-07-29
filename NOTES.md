@@ -90,6 +90,22 @@ preview clips** instead of Spotify.
   friends card lives in an always-present `#ranksSurvFrWrap` so a cold load can
   fill it in (rendering it conditionally would have made it vanish until you
   revisited the tab).
+- **Retention endpoint** (`GET /stats?key=…`, owner-only). The data to answer
+  "does anyone come back" has been sitting in `scores(day, device)` since launch
+  and had never been queried. Reports, per mode: players ever, % who played a
+  SECOND day at all, day-1 and day-7 cohort return rates, and per-day players
+  split into returning vs first-timers. Plus how many accounts still carry a
+  generated name (a blunt proxy for "did they care enough to stay").
+  Design notes: cohorts EXCLUDE players too new to have had the chance (day-1
+  counts only first-plays before today, day-7 only 7+ days back) — including
+  them makes every rate silently drift toward zero as newcomers arrive, which is
+  the classic way retention dashboards lie. Aggregate counts only; no device
+  tokens, handles or scores leave the endpoint (asserted in the test). Gated on a
+  `STATS_KEY` secret and returns 404 when unset, so it can't be open by accident.
+  HTML by default (readable on a phone), `&json=1` for the raw numbers.
+  `server/stats-test.js` builds a history whose answers are known by
+  construction — 7 devices, hand-placed across days — and checks every figure,
+  because a silently wrong retention number would drive the whole roadmap.
 - **KNOWN GAP: 93 songs Apple answers but pickBest rejects** (parked by Sam,
   "laat maar even zo"). A third harvest run resolved 0 of them — so it is NOT
   rate limiting: Apple returns results and our own matcher throws them away.

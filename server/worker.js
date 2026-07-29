@@ -871,6 +871,104 @@ async function chalBoardResp(env, setkey, device, cors){
     results: rows.map(r => ({ nick: r.nick, score: r.score, timeMs: r.time_ms, you: !!device && r.device === device })) }, 200, cors);
 }
 
+/* ---------- retention: the only number that decides anything ----------
+   Every daily play is already recorded as (day, device) in `scores`, and every
+   survival run as (day, user_id) in `sscores`. Nobody has ever looked. The
+   question a founder actually needs answered is not "how many played" but
+   "did anyone come back", so this reports return rates, not vanity totals.
+   Aggregate counts only — no device tokens, handles or scores leave here. */
+const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
+async function retention(env){
+  const today = dayNow();
+  const one = async (sql, ...b) => { try{ const r = await env.DB.prepare(sql).bind(...b).first(); return r || {}; }catch(e){ return {}; } };
+  const many = async (sql, ...b) => { try{ return ((await env.DB.prepare(sql).bind(...b).all()).results) || []; }catch(e){ return []; } };
+
+  const block = async (table, who) => {
+    const ever = (await one("SELECT COUNT(DISTINCT " + who + ") AS n FROM " + table)).n || 0;
+    // the crudest and most important number: of everyone who ever played, how
+    // many played on a SECOND day at all?
+    const back = (await one(
+      "SELECT COUNT(*) AS n FROM (SELECT " + who + " FROM " + table +
+      " GROUP BY " + who + " HAVING COUNT(DISTINCT day) >= 2) t")).n || 0;
+    // cohort retention. Only count players who HAVE HAD the chance to return —
+    // someone who first played today can't have a day-1 yet, and including them
+    // silently drags every number toward zero.
+    const win = async (gap, deadline) => {
+      const r = await one(
+        "WITH f AS (SELECT " + who + " AS id, MIN(day) AS d0 FROM " + table + " GROUP BY " + who + ") " +
+        "SELECT COUNT(*) AS cohort, SUM(CASE WHEN EXISTS(" +
+        "  SELECT 1 FROM " + table + " s WHERE s." + who + " = f.id AND s.day > f.d0 AND s.day <= f.d0 + ?1" +
+        ") THEN 1 ELSE 0 END) AS back FROM f WHERE f.d0 <= ?2", gap, deadline);
+      return { cohort: r.cohort || 0, back: r.back || 0, pct: pct(r.back || 0, r.cohort || 0) };
+    };
+    const byDay = (await many(
+      "SELECT day, COUNT(DISTINCT " + who + ") AS players FROM " + table +
+      " WHERE day > ?1 GROUP BY day ORDER BY day DESC", today - 21)).map(r => ({ day: r.day, players: r.players }));
+    // first-timers per day: separates "a few new people tried it" from
+    // "the same handful are still here"
+    const fresh = {};
+    for(const r of await many(
+      "SELECT MIN(day) AS d0, COUNT(*) AS n FROM (SELECT " + who + " AS id, MIN(day) AS day FROM " + table +
+      " GROUP BY " + who + ") GROUP BY day HAVING d0 > ?1", today - 21)) fresh[r.d0] = r.n;
+    for(const d of byDay) d.first = fresh[d.day] || 0;
+    return { ever, back, backPct: pct(back, ever), d1: await win(1, today - 1), d7: await win(7, today - 7), byDay };
+  };
+
+  const daily = await block("scores", "device");
+  const survival = await block("sscores", "user_id");
+  const claimed = (await one("SELECT COUNT(*) AS n FROM users")).n || 0;
+  const named = (await one("SELECT COUNT(*) AS n FROM users WHERE handle NOT LIKE '%Penguin' AND handle NOT LIKE '%Flamingo' " +
+    "AND handle NOT LIKE '%Walrus' AND handle NOT LIKE '%Otter' AND handle NOT LIKE '%Llama' AND handle NOT LIKE '%Moose' " +
+    "AND handle NOT LIKE '%Gecko' AND handle NOT LIKE '%Panda' AND handle NOT LIKE '%Ferret' AND handle NOT LIKE '%Narwhal' " +
+    "AND handle NOT LIKE '%Raccoon' AND handle NOT LIKE '%Badger'")).n || 0;
+  const friended = (await one("SELECT COUNT(DISTINCT a) AS n FROM friends WHERE status='accepted'")).n || 0;
+  return { today, daily, survival,
+    profiles: { claimed, named, stillGenerated: claimed - named, withFriends: friended } };
+}
+function retentionHTML(r){
+  const row = d => `<tr><td>#${d.day}</td><td>${d.players}</td><td>${d.first ? '+' + d.first : '·'}</td></tr>`;
+  const big = (v, label, sub) => `<div class="c"><div class="n">${v}</div><div class="l">${label}</div><div class="s">${sub}</div></div>`;
+  return `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Yearworm · retention</title><style>
+body{font:15px/1.5 system-ui,sans-serif;background:#0b0f1c;color:#e8ecf5;margin:0;padding:18px}
+h1{font-size:19px;margin:0 0 2px} .sub{color:#8b95ad;font-size:13px;margin-bottom:18px}
+h2{font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#8b95ad;margin:26px 0 10px}
+.g{display:flex;gap:10px;flex-wrap:wrap} .c{background:#141a2e;border-radius:12px;padding:13px 15px;min-width:104px;flex:1}
+.n{font-size:27px;font-weight:700} .l{font-size:12.5px;margin-top:1px} .s{color:#8b95ad;font-size:11.5px;margin-top:3px}
+table{border-collapse:collapse;margin-top:8px;width:100%;max-width:340px}
+td,th{padding:4px 10px 4px 0;text-align:left;font-variant-numeric:tabular-nums}
+th{color:#8b95ad;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.note{color:#8b95ad;font-size:12.5px;margin-top:10px;max-width:520px}
+</style>
+<h1>Yearworm · retention</h1><div class="sub">daily #${r.today} · aggregate only, no personal data</div>
+
+<h2>Daily challenge</h2>
+<div class="g">
+  ${big(r.daily.ever, 'ever played', 'distinct devices')}
+  ${big(r.daily.backPct + '%', 'came back', r.daily.back + ' of ' + r.daily.ever + ' played a 2nd day')}
+  ${big(r.daily.d1.pct + '%', 'day 1', r.daily.d1.back + ' of ' + r.daily.d1.cohort + ' returned next day')}
+  ${big(r.daily.d7.pct + '%', 'day 7', r.daily.d7.back + ' of ' + r.daily.d7.cohort + ' within a week')}
+</div>
+<table><tr><th>day</th><th>players</th><th>new</th></tr>${r.daily.byDay.map(row).join('')}</table>
+
+<h2>Survival</h2>
+<div class="g">
+  ${big(r.survival.ever, 'ever played', 'accounts')}
+  ${big(r.survival.backPct + '%', 'came back', r.survival.back + ' of ' + r.survival.ever)}
+</div>
+<table><tr><th>day</th><th>players</th><th>new</th></tr>${r.survival.byDay.map(row).join('')}</table>
+
+<h2>Profiles</h2>
+<div class="g">
+  ${big(r.profiles.claimed, 'accounts', 'claimed a name')}
+  ${big(r.profiles.stillGenerated, 'never renamed', 'still a generated name')}
+  ${big(r.profiles.withFriends, 'have a friend', 'at least one accepted')}
+</div>
+<div class="note">Cohorts exclude players too new to have had the chance:
+day-1 counts only those who first played before today, day-7 only those who
+first played 7+ days ago. Otherwise every newcomer silently drags the rate down.</div>`;
+}
+
 export default {
   async fetch(req, env, ctx){
     const url = new URL(req.url);
@@ -903,6 +1001,16 @@ export default {
     }
 
     if(url.pathname === "/health") return json({ ok: true, day: dayNow(), vapid: await vapidStatus(env) }, 200, cors);
+
+    // Owner-only: aggregate business metrics. Disabled unless STATS_KEY is set,
+    // so it can never be open by accident.
+    if(url.pathname === "/stats"){
+      if(!env.STATS_KEY) return json({ error: "stats disabled: set the STATS_KEY secret" }, 404, cors);
+      if(url.searchParams.get("key") !== env.STATS_KEY) return json({ error: "nope" }, 403, cors);
+      const r = await retention(env);
+      if(url.searchParams.get("json") === "1") return json(r, 200, cors);
+      return new Response(retentionHTML(r), { status: 200, headers: { ...cors, "content-type": "text/html; charset=utf-8" } });
+    }
 
     if(url.pathname === "/daily" && req.method === "GET"){
       const day = Math.min(Math.max(parseInt(url.searchParams.get("day") || dayNow(), 10) || dayNow(), 1), dayNow() + 1);
