@@ -125,7 +125,7 @@ const server = http.createServer((req,res)=>{
   await pg.waitForTimeout(300);
   card = await pg.$eval('#friendsCard', e=>e.innerText);
   if(!/Jesse wants to be friends/.test(card)) throw new Error('request row missing: '+card.slice(0,160));
-  await pg.click('#friendsCard button[aria-label="Accept"]');
+  await pg.click('#friendsCard button:has-text("Accept")');
   await pg.waitForTimeout(400);
   card = await pg.$eval('#friendsCard', e=>e.innerText);
   if(!/Jesse/.test(card) || /wants to be friends/.test(card)) throw new Error('accept did not settle: '+card.slice(0,160));
@@ -310,7 +310,7 @@ const server = http.createServer((req,res)=>{
   await pg.waitForTimeout(600);
   card = await pg.$eval('#friendsCard', e=>e.innerText);
   if(!/Jesse reacted 😂 to your challenge/.test(card)) throw new Error('reaction inbox row missing: '+card.slice(0,220));
-  await pg.click('#friendsCard button[aria-label="Dismiss"]');
+  await pg.click('#friendsCard button:has-text("Got it")');
   await pg.waitForTimeout(300);
   if(!actions.some(a=>a.action==='seen' && a.ids && a.ids.includes(9))) throw new Error('dismiss seen POST missing');
   card = await pg.$eval('#friendsCard', e=>e.innerText);
@@ -321,7 +321,7 @@ const server = http.createServer((req,res)=>{
   state.inbox = [{id:14, from:'f1', handle:'Jesse', kind:'result', payload:{score:4, w:'them'}, created:5}];
   await pg.evaluate(()=>socialGet().then(b=>renderFriendsCard(b)));
   await pg.waitForTimeout(400);
-  const rb = await pg.$('#friendsCard button[aria-label="React to Jesse"]');
+  const rb = await pg.$('#friendsCard button:has-text("React"), #friendsCard button:has-text("Reply")');
   if(!rb) throw new Error('react-back button missing on result row');
   const nRB = actions.length;
   await rb.click();
@@ -448,6 +448,31 @@ const server = http.createServer((req,res)=>{
   if(await pg.$eval('#overlay', e=>e.classList.contains('show'))) throw new Error('detail sheet still open after removal');
   if(await pg.$('#friendsCard button[aria-label="Challenge Jesse"]')) throw new Error('removed friend still in the roster');
   console.log('remove friend: armed confirm + POST + roster refresh OK');
+
+  // Inbox actions must READ as buttons. They were bare glyphs, and the same ✓
+  // meant "accept this person" in one row and "make this go away" two rows up.
+  await pg.evaluate(()=>{
+    const st = { me:{id:'me',handle:'Sam',code:'YW-ME0001'},
+      friends:[{id:'f9',handle:'Kim',w:0,l:0,t:0,recent:[]}],
+      requests:[{id:'r1',handle:'Nora'}], outgoing:0, outgoingIds:[],
+      inbox:[ {id:1,kind:'challenge',from:'f9',handle:'Kim',payload:{score:4},created:1},
+              {id:2,kind:'friend',from:'f8',handle:'Bram',payload:{}},
+              {id:3,kind:'result',from:'f9',handle:'Kim',payload:{w:'you',score:3}},
+              {id:4,kind:'react',from:'f9',handle:'Kim',payload:{emoji:'👏'}} ] };
+    _social = st; renderFriendsCard(st);
+  });
+  await pg.waitForTimeout(300);
+  const acts = await pg.$$eval('#friendsCard .inboxrow button, #friendsCard .row .btn.pink',
+    els => els.map(e => e.textContent.trim()));
+  for(const label of ['▶ Play','✓ Got it','💬 React','💬 Reply','✓ Accept','Decline'])
+    if(!acts.includes(label)) throw new Error('missing labelled action "'+label+'": '+JSON.stringify(acts));
+  // no action may be a bare glyph — that is the thing being fixed
+  const bare = acts.filter(t => t.replace(/[^\p{L}\p{N}]/gu,'').length === 0);
+  if(bare.length) throw new Error('unlabelled glyph button(s) left: '+JSON.stringify(bare));
+  // accept must stand out from dismiss, not look identical
+  const accept = await pg.$eval('#friendsCard .inboxrow button.pink', e=>e.textContent.trim());
+  if(accept !== '✓ Accept') throw new Error('accept is not the highlighted action: '+accept);
+  console.log('inbox actions: every one a labelled button, accept highlighted OK · '+acts.length+' actions');
 
   await ctx.close();
 

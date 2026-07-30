@@ -109,6 +109,26 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Inbox rows are labelled buttons now** (4.41.0 — Sam: "de vinkjes na
+  notificaties, share button en friend button kunnen duidelijker een knop worden
+  zoals de challenge knop"). Cosmetic on the surface, but there was a real
+  defect underneath: the SAME bare `✓` glyph meant "dismiss this notice" on the
+  new-friend/result/reaction rows and "**accept this person into your friends**"
+  on the request row — two opposite actions, identical affordance, stacked
+  within a few rows of each other. All four rows now carry words: `✓ Got it`,
+  `💬 React`, `💬 Reply`, and `✓ Accept` (highlighted `.pink`) / `Decline`.
+  Dismiss/Decline moved off `btn ghost sm` — a transparent pill with a glyph in
+  it reads as text, not as something you can press.
+  Layout: real labels are wider than glyphs, so a new `.inboxrow` (flex-wrap,
+  `.txt{flex:1 1 190px}`, `.acts{margin-left:auto}`) lets the buttons **wrap
+  below** the sentence on a 360px phone instead of squeezing it into a
+  five-line column. Verified by rendering at 360px: no overflow, no clipping.
+  Test note: `test/social.js` asserts every inbox action is a labelled button
+  and that no bare glyphs remain. Three existing selectors keyed off
+  `aria-label="Accept"/"Dismiss"/"React to Jesse"` and had to move to the
+  visible text — the aria-labels were REMOVED on purpose, because a button
+  whose visible text already says what it does must not also announce something
+  different to a screen reader.
 - **Retention endpoint** (`GET /stats?key=…`, owner-only). The data to answer
   "does anyone come back" has been sitting in `scores(day, device)` since launch
   and had never been queried. Reports, per mode: players ever, % who played a

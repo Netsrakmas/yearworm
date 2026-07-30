@@ -142,6 +142,13 @@
      is a ✓, a +, an hourglass, a ?, a share icon or nothing, all different
      widths, so without reserving the space the score column zig-zags row to
      row. .bactn keeps its width even when empty. */
+  /* inbox rows (challenge / new friend / result / reaction / request): the text
+     gets a sensible minimum and the buttons WRAP below it on a narrow phone,
+     rather than compressing the sentence into a five-line column beside them */
+  .inboxrow{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
+    gap:8px; margin-top:9px;}
+  .inboxrow > .txt{flex:1 1 190px; min-width:0; font-size:13.5px;}
+  .inboxrow > .acts{flex:0 0 auto; display:inline-flex; gap:6px; margin-left:auto;}
   .bscore{flex:0 0 auto; min-width:34px; text-align:right; font-family:var(--mono); font-size:13px;}
   .bactn{flex:0 0 30px; height:28px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;}
   /* .btn.sm carries min-height:40px for thumbs, which made every row WITH a
@@ -502,7 +509,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.40.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.41.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6222,33 +6229,34 @@ function friendsCardHTML(st){
         </span>
       </div>`;}).join("");
       })()}
-      ${newFriends.map(m=>`<div class="row" style="justify-content:space-between; align-items:center; margin-top:9px">
-        <span style="font-size:13.5px">⚔️ <b>${esc(m.handle)}</b> used your code — you're friends now!</span>
-        <button class="btn ghost sm" style="flex:0 0 auto" onclick="dismissMsg(${m.id})" aria-label="Dismiss">✓</button>
+      ${newFriends.map(m=>`<div class="inboxrow">
+        <span class="txt">⚔️ <b>${esc(m.handle)}</b> used your code — you're friends now!</span>
+        <button class="btn sm" onclick="dismissMsg(${m.id})">✓ Got it</button>
       </div>`).join("")}
       ${results.map(m=>{
         const w = m.payload && m.payload.w, sc = m.payload && m.payload.score;
         const verdict = w === "you" ? `<b style="color:var(--good)">you held it 🛡</b>`
                       : w === "them" ? `<b style="color:var(--bad)">they beat you</b>`
                       : `<b>dead even 🤝</b>`;
-        return `<div class="row" style="justify-content:space-between; align-items:center; margin-top:9px">
-        <span style="font-size:13.5px">⚔️ <b>${esc(m.handle)}</b> played your challenge${sc != null ? ` — ${sc}/${RUN_LEN}` : ``} · ${verdict}${m.payload && m.payload.emoji ? ` <span style="font-size:15px">${esc(m.payload.emoji)}</span>` : ``}</span>
-        <span style="flex:0 0 auto; display:inline-flex; gap:6px">
-          <button class="btn ghost sm" onclick="openReactSheet('${m.from}','${esc(m.handle)}')" aria-label="React to ${esc(m.handle)}">💬</button>
-          <button class="btn ghost sm" onclick="dismissMsg(${m.id})" aria-label="Dismiss">✓</button>
+        return `<div class="inboxrow">
+        <span class="txt">⚔️ <b>${esc(m.handle)}</b> played your challenge${sc != null ? ` — ${sc}/${RUN_LEN}` : ``} · ${verdict}${m.payload && m.payload.emoji ? ` <span style="font-size:15px">${esc(m.payload.emoji)}</span>` : ``}</span>
+        <span class="acts">
+          <button class="btn sm" onclick="openReactSheet('${m.from}','${esc(m.handle)}')" aria-label="React to ${esc(m.handle)}">💬 React</button>
+          <button class="btn sm" onclick="dismissMsg(${m.id})">✓ Got it</button>
         </span>
       </div>`;}).join("")}
-      ${reacts.map(m=>`<div class="row" style="justify-content:space-between; align-items:center; margin-top:9px">
-        <span style="font-size:13.5px"><b>${esc(m.handle)}</b> reacted ${esc(m.payload && m.payload.emoji || "👏")}${m.payload && m.payload.score != null ? ` to your challenge` : ``}</span>
-        <span style="flex:0 0 auto; display:inline-flex; gap:6px">
-          <button class="btn ghost sm" onclick="openReactSheet('${m.from}','${esc(m.handle)}')" aria-label="React to ${esc(m.handle)}">💬</button>
-          <button class="btn ghost sm" onclick="dismissMsg(${m.id})" aria-label="Dismiss">✓</button>
+      ${reacts.map(m=>`<div class="inboxrow">
+        <span class="txt"><b>${esc(m.handle)}</b> reacted ${esc(m.payload && m.payload.emoji || "👏")}${m.payload && m.payload.score != null ? ` to your challenge` : ``}</span>
+        <span class="acts">
+          <button class="btn sm" onclick="openReactSheet('${m.from}','${esc(m.handle)}')" aria-label="Reply to ${esc(m.handle)}">💬 Reply</button>
+          <button class="btn sm" onclick="dismissMsg(${m.id})">✓ Got it</button>
         </span>
       </div>`).join("")}
-      ${reqs.map(q=>`<div class="row" style="justify-content:space-between; align-items:center; margin-top:9px">
-        <span style="font-size:13.5px"><b>${esc(q.handle)}</b> wants to be friends</span>
-        <span style="flex:0 0 auto"><button class="btn sm" onclick="acceptFriend('${q.id}')" aria-label="Accept">✓</button>
-          <button class="btn ghost sm" onclick="declineFriend('${q.id}')" aria-label="Decline">✕</button></span>
+      ${reqs.map(q=>`<div class="inboxrow">
+        <span class="txt"><b>${esc(q.handle)}</b> wants to be friends</span>
+        <span class="acts">
+          <button class="btn sm pink" onclick="acceptFriend('${q.id}')">✓ Accept</button>
+          <button class="btn sm" onclick="declineFriend('${q.id}')">Decline</button></span>
       </div>`).join("")}
       ${fr.length ? [...fr].sort((x,y)=>(((y.w|0)+(y.l|0)+(y.t|0)) - ((x.w|0)+(x.l|0)+(x.t|0))) || ((y.w|0)-(x.w|0))).map(f=>{
         const w = f.w|0, l = f.l|0, t = f.t|0, any = w+l+t > 0;
