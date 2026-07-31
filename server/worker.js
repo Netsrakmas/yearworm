@@ -5,6 +5,11 @@
 const DAILY_EPOCH = Date.UTC(2026, 6, 1);        // #1 = 1 July 2026 (mirrors index.html)
 const RUN_LEN = 5;
 const TOP_N = 25;
+// Inbox notices that are pure news auto-clear 3 days after they were first
+// shown. Challenges and friend requests are NOT in here on purpose: those are
+// actions someone is waiting on, and they only leave when you answer them.
+const NOTICE_TTL_MS = 3 * 864e5;
+const NOTICE_KINDS = { friend: 1, result: 1, react: 1 };
 
 const dayNow = () => Math.max(1, Math.floor((Date.now() - DAILY_EPOCH) / 864e5) + 1);
 
@@ -535,9 +540,45 @@ async function socialState(env, me, cors){
     else if(r.requester === me.id){ outgoing++; outgoingIds.push(other); }
     else requests.push({ id: other, handle: named[other], avatar: avatars[other] || null });
   }
-  const inbox = ((await env.DB.prepare(
-    "SELECT id, from_user, kind, payload, created FROM inbox WHERE to_user=?1 AND seen=0 ORDER BY created DESC LIMIT 20"
-  ).bind(me.id).all()).results || []).map(m => ({
+  // Notices clear themselves once they've been sitting in front of you for a
+  // while, so the Friends badge keeps meaning "something new happened" instead
+  // of slowly becoming a permanent number nobody reads. Only the FYI kinds age
+  // out — a challenge and a friend request are things someone else is WAITING
+  // on, and silently dropping those loses a real invitation.
+  // The clock starts when a notice is first DELIVERED to the app (which is also
+  // when it starts showing as a tab badge), not when it was created: someone
+  // away for two weeks still gets their news on the day they come back.
+  let raw = [];
+  try{
+    raw = ((await env.DB.prepare(
+      "SELECT id, from_user, kind, payload, created, shown FROM inbox WHERE to_user=?1 AND seen=0 ORDER BY created DESC LIMIT 20"
+    ).bind(me.id).all()).results || []);
+  }catch(e){
+    // server hasn't run the lazy ALTER yet — degrade to no auto-expiry rather
+    // than 500-ing the whole friends card over a housekeeping column
+    raw = ((await env.DB.prepare(
+      "SELECT id, from_user, kind, payload, created FROM inbox WHERE to_user=?1 AND seen=0 ORDER BY created DESC LIMIT 20"
+    ).bind(me.id).all()).results || []);
+  }
+  const nowMs = Date.now();
+  // NUMBERED placeholders (?1, ?2…) like everything else here — a bare "?" list
+  // binds nothing and the UPDATE quietly becomes a no-op, which for an expiry
+  // sweep means "the feature simply never happens" with no error to notice
+  const marks = (n, from) => Array.from({ length: n }, (_, i) => "?" + (i + from)).join(",");
+  const stale = raw.filter(m => NOTICE_KINDS[m.kind] && m.shown > 0 && nowMs - m.shown > NOTICE_TTL_MS).map(m => m.id);
+  if(stale.length){
+    try{ await env.DB.prepare(
+      "UPDATE inbox SET seen=1 WHERE to_user=?1 AND id IN (" + marks(stale.length, 2) + ")"
+    ).bind(me.id, ...stale).run(); }catch(e){}
+    raw = raw.filter(m => !stale.includes(m.id));
+  }
+  const unstamped = raw.filter(m => !m.shown).map(m => m.id);
+  if(unstamped.length){
+    try{ await env.DB.prepare(
+      "UPDATE inbox SET shown=?1 WHERE id IN (" + marks(unstamped.length, 2) + ")"
+    ).bind(nowMs, ...unstamped).run(); }catch(e){}
+  }
+  const inbox = raw.map(m => ({
     id: m.id, from: m.from_user, handle: named[m.from_user] || "?", avatar: avatars[m.from_user] || null, kind: m.kind,
     payload: (()=>{ try{ return JSON.parse(m.payload); }catch(e){ return {}; } })(), created: m.created
   }));
@@ -1240,6 +1281,7 @@ export default {
     try{ await env.DB.prepare("ALTER TABLE push_subs ADD COLUMN nudged INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE users ADD COLUMN sbest INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE users ADD COLUMN tbest INTEGER").run(); }catch(e){}
+    try{ await env.DB.prepare("ALTER TABLE inbox ADD COLUMN shown INTEGER NOT NULL DEFAULT 0").run(); }catch(e){}
     // per-day survival scores → daily & rolling-7-day friend boards
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS sscores (day INTEGER, user_id TEXT, score INTEGER, created INTEGER)").run(); }catch(e){}
     try{ await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_sscores ON sscores (user_id, day)").run(); }catch(e){}

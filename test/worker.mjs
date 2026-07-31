@@ -70,6 +70,15 @@ function fakeDB(){
         const m=inbox.find(r=>r.id===a[0]&&r.to_user===a[1]); return m?{from_user:m.from_user,kind:m.kind,payload:m.payload}:null; }
       if(/SELECT requester, status FROM friends/.test(sql)){ const f=friends.find(r=>r.a===a[0]&&r.b===a[1]); return f?{requester:f.requester,status:f.status}:null; }
       if(/SELECT status FROM friends/.test(sql)){ const f=friends.find(r=>r.a===a[0]&&r.b===a[1]); return f?{status:f.status}:null; }
+      // "have they played this set before" — drives the play-notification, which
+      // must fire for a NEW player only. The mock had gone stale on this one.
+      if(/SELECT 1 AS x FROM chals WHERE setkey=/.test(sql)){
+        return chals.some(r=>r.setkey===a[0] && r.device===a[1]) ? { x:1 } : null; }
+      // reaction bundling: an unseen result row from the same sender absorbs it
+      if(/SELECT id, payload FROM inbox WHERE to_user=\?1 AND from_user=\?2 AND kind='result'/.test(sql)){
+        const m = inbox.filter(r=>r.to_user===a[0]&&r.from_user===a[1]&&r.kind==='result'&&!r.seen)
+          .sort((x,y)=>y.created-x.created)[0];
+        return m ? { id:m.id, payload:m.payload } : null; }
       throw new Error('unexpected first: '+sql);
     },
     async all(){
@@ -92,7 +101,12 @@ function fakeDB(){
       }
       if(/FROM inbox WHERE to_user=/.test(sql)){
         return { results: inbox.filter(m=>m.to_user===a[0]&&!m.seen).sort((x,y)=>y.created-x.created).slice(0,20)
-          .map(m=>({id:m.id,from_user:m.from_user,kind:m.kind,payload:m.payload,created:m.created})) };
+          .map(m=>({id:m.id,from_user:m.from_user,kind:m.kind,payload:m.payload,created:m.created,shown:m.shown||0})) };
+      }
+      // challenges I sent that are still unanswered — the "⏳ waiting" list
+      if(/FROM inbox WHERE from_user=/.test(sql)){
+        return { results: inbox.filter(m=>m.from_user===a[0]&&m.kind==='challenge'&&!m.seen)
+          .sort((x,y)=>y.created-x.created).slice(0,20).map(m=>({to_user:m.to_user,created:m.created})) };
       }
       throw new Error('unexpected all: '+sql);
     },

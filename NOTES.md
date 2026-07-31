@@ -109,6 +109,40 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Notices expire themselves; actions never do** (server-side, **no BUILD bump**
+  — Sam: "misschien kunnen de notificaties nadat ze gezien zijn ook na een
+  bepaalde tijd weggaan?"). `inbox` gained a `shown` column (lazy ALTER in
+  `scheduled()` + schema.sql). `socialState` stamps it the first time a row is
+  actually DELIVERED to the app, and 3 days later the pure-news kinds
+  (`friend`, `result`, `react`) mark themselves seen and drop off.
+  Two decisions worth keeping:
+  1. **The clock starts at delivery, not at creation.** Expiring by `created`
+     would mean someone who was away for a week comes back to an empty inbox
+     and never learns that three people added them. `shown` is also exactly
+     when the Friends tab badge starts showing the count, so "shown" really is
+     "you were told".
+  2. **Challenges and friend requests are excluded on purpose.** Those aren't
+     news, they're something another player is *waiting* on — silently dropping
+     one loses a real invitation and, for a challenge, clears the sender's ⏳
+     with no explanation. They leave only when you answer them.
+  Nothing is lost when a notice expires: `feedFromInbox()` has already copied it
+  into the local `tl_feed` activity log on the same fetch that stamped it. (Caveat:
+  that log is per-device, so a second device that never fetched during the 3 days
+  won't have it.)
+  Why the badge matters more than the row: an inbox that only ever grows makes
+  the number on the Friends tab meaningless, and a meaningless badge is worse
+  than no badge — you stop looking.
+  ⚠️ Bug the test caught before it shipped: the dynamic `id IN (…)` lists used
+  bare `?` placeholders while every other statement here uses numbered ones.
+  Nothing bound, the UPDATE was a silent no-op, and the whole feature simply
+  never happened — with no error anywhere. Use `?1, ?2…` (`marks()` helper).
+  Test: `worker-push-test` "notices expire, actions don't" backdates `shown`
+  in the SQLite shim and asserts the FYI row goes while the challenge, the
+  sender's ⏳ and the friend request all stay.
+  Side repair: `test/worker.mjs` had been red for a while — its hand-rolled SQL
+  mock was missing three queries that the worker had grown since (the chals
+  one-shot probe, the outgoing-challenge list, and the reaction-bundling
+  lookup). Fixed; that suite passes again.
 - **Inbox rows are labelled buttons now** (4.41.0 — Sam: "de vinkjes na
   notificaties, share button en friend button kunnen duidelijker een knop worden
   zoals de challenge knop"). Cosmetic on the surface, but there was a real

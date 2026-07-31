@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS inbox (
   kind      TEXT NOT NULL,         -- 'challenge'
   payload   TEXT NOT NULL,         -- JSON: {set, score, timeMs}
   created   INTEGER NOT NULL,
-  seen      INTEGER NOT NULL DEFAULT 0
+  seen      INTEGER NOT NULL DEFAULT 0,
+  shown     INTEGER NOT NULL DEFAULT 0   -- first delivered to the app; FYI rows auto-clear 3 days after this
 );
 CREATE INDEX IF NOT EXISTS idx_inbox_to ON inbox(to_user, seen, created DESC);
 
