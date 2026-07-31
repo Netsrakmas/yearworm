@@ -10,6 +10,14 @@ const TOP_N = 25;
 // actions someone is waiting on, and they only leave when you answer them.
 const NOTICE_TTL_MS = 3 * 864e5;
 const NOTICE_KINDS = { friend: 1, result: 1, react: 1 };
+// Picks retired by hand. A pin normally only clears when Apple drops the track;
+// these RESOLVE perfectly well but are the wrong recording, so nothing would
+// ever have retired them on its own. Listed here (rather than fixed by a
+// one-off SQL command) so the reason is in version control and a rebuilt
+// database can't quietly resurrect them.
+const RETIRED_TRACKS = [
+  1560908588,   // "MONTERO (Call Me By Your Name) [but Lil Nas X is silent]" — the vocals are stripped out
+];
 
 const dayNow = () => Math.max(1, Math.floor((Date.now() - DAILY_EPOCH) / 864e5) + 1);
 
@@ -61,6 +69,12 @@ function limited(ip, max, bucket){
 function norm(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
 function yearOf(releaseDate){ const y = parseInt(String(releaseDate||"").slice(0,4),10); return y||null; }
 const BADVER = /karaoke|tribute|made famous|originally performed|as made popular|8[\- ]?bit|lullaby|meditation|piano tribute/i;
+// …but only when the curated song doesn't use the word itself. Shawn Mullins'
+// record IS called "Lullaby" and sits on an album of the same name, so the
+// blanket ban made it unresolvable — it survives in previews.json only because
+// it was harvested before "lullaby" joined the list. Same "unless wanted"
+// idiom as NOVOCAL below.
+const badWantedBy = song => BADVER.test((song && song.title) || "") || BADVER.test((song && song.artist) || "");
 // compare on the CORE title: "(feat. …)" / "[Club Mix]" suffixes off. Apple's
 // canonical track is often "Title (feat. X)", which never matched exactly and
 // could tie with a DIFFERENT same-artist song whose short title is a substring
@@ -75,6 +89,16 @@ function coreNorm(s){
 // to recognize, sped-up/slowed uploads distort the era. HARD-reject these —
 // unless the curated title itself asks for one.
 const NOVOCAL = /\b(instrumental|sped[- ]?up|slowed(?:\s*(?:\+|and|&)\s*reverb)?|8d audio|nightcore)\b/i;
+// The same idea as it appears on the ALBUM rather than the track, plus the
+// meme-upload family: the real recording with the voice taken out, sold as
+// "MONTERO (Call Me By Your Name) [but Lil Nas X is silent]". That one shipped
+// — it was pinned and played to everyone. Nothing else here could have caught
+// it: the giveaway lives only in the collection name, and coreNorm() deletes
+// bracketed suffixes before comparing, so it scored a perfect title match.
+// The bare word "instrumental" is deliberately NOT in here: plenty of genuinely
+// instrumental tracks sit on an album called "… Instrumental", and rejecting
+// those would cost real songs.
+const NOVOCAL_ALBUM = /\bbut\b[^,;]{0,40}\bis silent\b|\b(?:no|without|minus)\s+vocals?\b|\bvocals?\s+removed\b|\b(sped[- ]?up|slowed(?:\s*(?:\+|and|&)\s*reverb)?|8d audio|nightcore)\b/i;
 // versions that are merely OFF (live, acoustic, covers, remixes): penalized so
 // any clean take wins, but still allowed as a last resort — a live cut of the
 // right song beats no song. "unless wanted" guard: "Live Is Life" stays fine.
@@ -85,12 +109,14 @@ const OFFVER = /\b(live|acoustic|unplugged|demo|remix|cover|re-?recorded|orchest
 const LONGVER = /\b(extended|club mix|12["”]|dance mix|dub|megamix|long version)\b/i;
 function pickBest(results, song){
   const wantT = norm(song.title), wantA = norm(song.artist);
+  const badWanted = badWantedBy(song);
   const wantTC = coreNorm(song.title) || wantT;
   let best=null, bestScore=-1;
   for(const r of results){
     if(!r.previewUrl) continue;
-    if(BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"")) continue;
+    if(!badWanted && (BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"") || BADVER.test(r.trackName||""))) continue;
     if(NOVOCAL.test(r.trackName||"") && !NOVOCAL.test(song.title||"")) continue;
+    if(NOVOCAL_ALBUM.test(r.collectionName||"") && !NOVOCAL_ALBUM.test(song.title||"")) continue;
     const t = norm(r.trackName), tc = coreNorm(r.trackName) || t, a = norm(r.artistName);
     let tScore = 0, aScore = 0;
     if(t===wantT || tc===wantTC) tScore = 3;
@@ -221,12 +247,25 @@ async function resolveTerm(env, term, limit){
 }
 // The whole endpoint: resolve, then CHOOSE — and remember the choice.
 async function lookupSong(env, term, song, limit){
-  const r = await resolveTerm(env, term, limit);
+  let r = await resolveTerm(env, term, limit);
   if(!r.ok) return { ok: false, pick: null, results: [] };
   if(!song) return { ok: true, pick: null, results: r.results };   // older client: raw list, as before
   const key = term.toLowerCase().slice(0, 120);
   // an existing pin decides, so the answer can't drift when Apple reshuffles
   let pick = r.pin ? (r.results.find(x => x.trackId === r.pin) || null) : null;
+  // ...but a pin must not outrank the blacklist. Without this a bad pick could
+  // only ever be retired by Apple deleting the track: the pin short-circuits
+  // the picker, so fixing the RULES fixes nothing for a song already pinned.
+  if(pick && pick.trackId != null && (await deadSet(env, [pick.trackId])).has(pick.trackId)){
+    // Start over rather than fall through: both the results in hand and the
+    // cached row came from a lookup of the pinned id alone, so there is no
+    // second candidate here to pick instead — just the retired one.
+    try{ await env.DB.prepare("DELETE FROM pins WHERE term=?1").bind(key).run(); }catch(e){}
+    try{ await env.DB.prepare("DELETE FROM previews WHERE term=?1").bind(key).run(); }catch(e){}
+    r = await resolveTerm(env, term, limit);
+    if(!r.ok) return { ok: false, pick: null, results: [] };
+    pick = null;
+  }
   if(!pick){
     const dead = await deadSet(env, r.results.map(x => x.trackId).filter(x => x != null));
     pick = pickBest(dead.size ? r.results.filter(x => !dead.has(x.trackId)) : r.results, song);
@@ -1282,6 +1321,14 @@ export default {
     try{ await env.DB.prepare("ALTER TABLE users ADD COLUMN sbest INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE users ADD COLUMN tbest INTEGER").run(); }catch(e){}
     try{ await env.DB.prepare("ALTER TABLE inbox ADD COLUMN shown INTEGER NOT NULL DEFAULT 0").run(); }catch(e){}
+    // retire hand-listed bad picks: blacklist the track, then drop the cached
+    // search AND the pin that points at it. Order matters — the cached row is
+    // found THROUGH the pin, so deleting the pin first would strand it.
+    for(const id of RETIRED_TRACKS){
+      try{ await env.DB.prepare("INSERT OR IGNORE INTO dead_ids (track_id, at) VALUES (?1,?2)").bind(id, Date.now()).run(); }catch(e){}
+      try{ await env.DB.prepare("DELETE FROM previews WHERE term IN (SELECT term FROM pins WHERE track_id=?1)").bind(id).run(); }catch(e){}
+      try{ await env.DB.prepare("DELETE FROM pins WHERE track_id=?1").bind(id).run(); }catch(e){}
+    }
     // per-day survival scores → daily & rolling-7-day friend boards
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS sscores (day INTEGER, user_id TEXT, score INTEGER, created INTEGER)").run(); }catch(e){}
     try{ await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_sscores ON sscores (user_id, day)").run(); }catch(e){}

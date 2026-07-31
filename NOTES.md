@@ -109,6 +109,55 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **A meme edit was pinned and played to everyone** (4.43.0 — Sam: "ik dacht dat
+  ik voor dit nummer een ander lied hoorde"). Montero resolved to
+  `MONTERO (Call Me By Your Name) [but Lil Nas X is silent]` — the real
+  recording with the vocals stripped out. Unguessable, and it had been the
+  pinned answer for everyone.
+  Why nothing caught it: the giveaway lives **only in the album name**, and
+  `coreNorm()` deletes bracketed suffixes before comparing, so the track scored
+  a *perfect* title match. `BADVER` never looked at the track name and
+  `NOVOCAL` never looked at the album. New `NOVOCAL_ALBUM` covers the
+  "but X is silent" / "no vocals" / "vocals removed" family plus the sped-up /
+  slowed / nightcore edits as they appear on a collection. The bare word
+  **"instrumental" is deliberately NOT in the album pattern** — plenty of
+  genuinely instrumental music sits on an album called "… Instrumental"
+  (Chariots of Fire is the fixture) and banning it would cost real songs.
+  **The structural half is the important one.** Fixing the RULES fixes nothing
+  for a song already pinned: `lookupSong` short-circuits to the pin, so a live-
+  but-wrong pick could only ever be retired by Apple deleting the track. Now a
+  pin is checked against `dead_ids`, and when it loses it the term's cached row
+  goes too and the term is re-resolved from scratch — necessary, because both
+  the cached row and the results in hand came from a `lookup?id=<pin>` of that
+  one track, so there is no second candidate to fall back on. `RETIRED_TRACKS`
+  in worker.js is the hand-list (blacklist + drop cache + drop pin on the cron),
+  kept in version control so the reason travels with the fix and a rebuilt
+  database can't resurrect it. Delete the cached row BEFORE the pin — the row is
+  found *through* the pin.
+  ⚠️ **A sweep of the change caught a regression in the change itself.** Adding
+  `BADVER` to the track name would have hard-rejected Shawn Mullins' "Lullaby" —
+  the song is *called* Lullaby and the album shares the name. `BADVER` had no
+  "unless the curated title asks for it" guard (unlike `NOVOCAL`); it does now.
+  That was already a live bug: the song is in previews.json only because it was
+  harvested before "lullaby" joined the list, and it could not have been
+  re-resolved. Found by regexing all 2112 pinned album slugs, which is worth
+  repeating after any picker change — it was the only hit in the catalogue.
+  `previews.json` re-shipped without the Montero entry (2112 songs); it will
+  come back correctly on the next weekly harvest, which lifts `pickBest` from
+  index.html at runtime and therefore inherits the fix for free.
+  Tests: `pickparity` gains the silent-edit, the "No Vocals" album, the
+  instrumental-album counter-case and the Lullaby regression (16 fixtures);
+  `worker-push-test` gains "a retired pin is dropped, the term re-searched and
+  re-pinned" plus a clean-search check that the picker refuses the album on its
+  own.
+- **Bee Gees years** — Sam suspected "Stayin' Alive" was wrong. It isn't: 1977 is
+  the release year (single 13 Dec 1977, SNF soundtrack 15 Nov 1977); it topped
+  the charts in Feb 1978, which is what people remember. But the check turned up
+  a real inconsistency next door: **More Than a Woman** was dated 1978 (the
+  Tavares single) while **Night Fever** was dated 1977 (the album) — two rules
+  for two tracks off the same record. Settled on release-year-of-the-recording,
+  which is also what the built-in verifier assumes since it compares against
+  Apple's `releaseDate`; More Than a Woman is now 1977.
 - **Friend-picker sheets: the footer was eating the primary action** (4.42.0 —
   Sam sent a screenshot of "Pass this set on": "this looks a bit off").
   Root cause, and it's a layout trap worth remembering: `.sheetfoot` is

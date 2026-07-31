@@ -16,7 +16,7 @@ function loadClientPicker(){
   if(start < 0 || end < 2) throw new Error('could not find the picker in index.html');
   const src = `function norm(s){ return (s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
 function yearOf(d){ const y = parseInt(String(d||"").slice(0,4),10); return y||null; }
-` + h.slice(start, end) + '\nmodule.exports = { pickBest, BADVER, NOVOCAL, OFFVER, LONGVER };';
+` + h.slice(start, end) + '\nmodule.exports = { pickBest, BADVER, NOVOCAL, NOVOCAL_ALBUM, OFFVER, LONGVER };';
   const ctx = { module: { exports: {} } };
   vm.runInNewContext(src, ctx);
   return ctx.module.exports;
@@ -26,7 +26,7 @@ function loadWorkerPicker(){
   const start = w.indexOf('function norm(s){');
   const end = w.indexOf('\n}', w.indexOf('function pickBest(results, song){')) + 2;
   if(start < 0 || end < 2) throw new Error('could not find the picker in worker.js');
-  const src = w.slice(start, end) + '\nmodule.exports = { pickBest, BADVER, NOVOCAL, OFFVER, LONGVER };';
+  const src = w.slice(start, end) + '\nmodule.exports = { pickBest, BADVER, NOVOCAL, NOVOCAL_ALBUM, OFFVER, LONGVER };';
   const ctx = { module: { exports: {} } };
   vm.runInNewContext(src, ctx);
   return ctx.module.exports;
@@ -73,6 +73,32 @@ const CASES = [
   { name: 'wanted "Live" in the curated title is not penalised',
     song: { title: 'Live Is Life', artist: 'Opus', year: 1985 },
     results: [ R({trackId:17, trackName:'Live Is Life', artistName:'Opus', releaseDate:'1985-01-01', trackTimeMillis:250000}) ] },
+  // shipped and pinned: a player heard Montero with the vocals taken out. The
+  // track name is a PERFECT match and coreNorm() strips the bracketed suffix,
+  // so the giveaway existed only in the album name.
+  { name: 'the "but X is silent" meme edit is rejected on the album name',
+    song: { title: 'Montero (Call Me by Your Name)', artist: 'Lil Nas X', year: 2021 },
+    results: [ R({trackId:19, trackName:'MONTERO (Call Me By Your Name)', artistName:'Lil Nas X',
+                  collectionName:'MONTERO (Call Me By Your Name) [but Lil Nas X is silent]', releaseDate:'2021-03-26', trackTimeMillis:137000}),
+               R({trackId:20, trackName:'MONTERO (Call Me By Your Name)', artistName:'Lil Nas X',
+                  collectionName:'MONTERO (Call Me By Your Name)', releaseDate:'2021-03-26', trackTimeMillis:137000}) ] },
+  { name: 'a "No Vocals" album is rejected too',
+    song: { title: 'Believe', artist: 'Cher', year: 1998 },
+    results: [ R({trackId:21, trackName:'Believe', artistName:'Cher', collectionName:'Believe (No Vocals)', releaseDate:'1998-10-19', trackTimeMillis:239000}),
+               R({trackId:22, trackName:'Believe', artistName:'Cher', collectionName:'Believe', releaseDate:'1998-10-19', trackTimeMillis:239000}) ] },
+  // the counter-case that keeps the album rule honest: genuinely instrumental
+  // music routinely lives on an album called "… Instrumental", which is why the
+  // bare word is NOT in the album pattern
+  { name: 'a real instrumental track on an "Instrumental" album still resolves',
+    song: { title: 'Chariots of Fire', artist: 'Vangelis', year: 1981 },
+    results: [ R({trackId:23, trackName:'Chariots of Fire', artistName:'Vangelis',
+                  collectionName:'Chariots of Fire — Instrumental', releaseDate:'1981-03-01', trackTimeMillis:200000}) ] },
+  // its own record is CALLED "Lullaby" and the album shares the name — the
+  // blanket ban left this song unresolvable
+  { name: 'a song whose real title trips BADVER still resolves',
+    song: { title: 'Lullaby', artist: 'Shawn Mullins', year: 1998 },
+    results: [ R({trackId:24, trackName:'Lullaby', artistName:'Shawn Mullins', collectionName:'Lullaby',
+                  releaseDate:'1998-01-01', trackTimeMillis:230000}) ] },
   { name: 'no previewUrl is unusable',
     song: { title: 'Yesterday', artist: 'The Beatles', year: 1965 },
     results: [ { trackId:18, trackName:'Yesterday', artistName:'The Beatles', releaseDate:'1965-01-01' } ] },
@@ -85,7 +111,7 @@ const CASES = [
   const worker = loadWorkerPicker();
 
   // the rule sets themselves must be character-identical, not merely similar
-  for(const re of ['BADVER','NOVOCAL','OFFVER','LONGVER']){
+  for(const re of ['BADVER','NOVOCAL','NOVOCAL_ALBUM','OFFVER','LONGVER']){
     if(String(client[re]) !== String(worker[re]))
       throw new Error(re + ' differs:\n  client: ' + client[re] + '\n  worker: ' + worker[re]);
   }
@@ -111,6 +137,10 @@ const CASES = [
     'era bonus separates a reissue from the original':15,
     'a live cut still beats nothing at all':16,
     'wanted "Live" in the curated title is not penalised':17,
+    'the "but X is silent" meme edit is rejected on the album name':20,
+    'a "No Vocals" album is rejected too':22,
+    'a real instrumental track on an "Instrumental" album still resolves':23,
+    'a song whose real title trips BADVER still resolves':24,
     'no previewUrl is unusable':null, 'empty result set':null };
   for(const c of CASES){
     const got = worker.pickBest(c.results, c.song);

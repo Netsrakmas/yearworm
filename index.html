@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.42.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.43.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -3404,7 +3404,7 @@ const EXTRA_SONGS = [
   {year:1977, artist:"Heatwave", title:"Boogie Nights"},
   {year:1977, artist:"Meco", title:"Star Wars Theme/Cantina Band"},
   {year:1978, artist:"Village People", title:"Macho Man"},
-  {year:1978, artist:"Bee Gees", title:"More Than a Woman"},
+  {year:1977, artist:"Bee Gees", title:"More Than a Woman"},
   {year:1978, artist:"A Taste of Honey", title:"Boogie Oogie Oogie"},
   {year:1978, artist:"Sylvester", title:"You Make Me Feel (Mighty Real)"},
   {year:1978, artist:"Donna Summer", title:"Last Dance"},
@@ -3751,7 +3751,7 @@ const PARTY_SONGS = [
   {year:1978, artist:"Village People", title:"Macho Man"},
   {year:1978, artist:"Earth, Wind & Fire", title:"September"},
   {year:1978, artist:"Gloria Gaynor", title:"I Will Survive"},
-  {year:1978, artist:"Bee Gees", title:"More Than a Woman"},
+  {year:1977, artist:"Bee Gees", title:"More Than a Woman"},
   {year:1978, artist:"A Taste of Honey", title:"Boogie Oogie Oogie"},
   {year:1978, artist:"Sylvester", title:"You Make Me Feel (Mighty Real)"},
   {year:1978, artist:"The Rolling Stones", title:"Miss You"},
@@ -6533,6 +6533,12 @@ function yearOf(releaseDate){ const y = parseInt(String(releaseDate||"").slice(0
 // pick the result that best matches the curated title/artist and has a playable preview
 // karaoke / tribute / novelty versions often have wrong or silent previews
 const BADVER = /karaoke|tribute|made famous|originally performed|as made popular|8[\- ]?bit|lullaby|meditation|piano tribute/i;
+// …but only when the curated song doesn't use the word itself. Shawn Mullins'
+// record IS called "Lullaby" and sits on an album of the same name, so the
+// blanket ban made it unresolvable — it survives in previews.json only because
+// it was harvested before "lullaby" joined the list. Same "unless wanted"
+// idiom as NOVOCAL below.
+const badWantedBy = song => BADVER.test((song && song.title) || "") || BADVER.test((song && song.artist) || "");
 // compare on the CORE title: "(feat. …)" / "[Club Mix]" suffixes off. Apple's
 // canonical track is often "Title (feat. X)", which never matched exactly and
 // could tie with a DIFFERENT same-artist song whose short title is a substring
@@ -6547,6 +6553,16 @@ function coreNorm(s){
 // to recognize, sped-up/slowed uploads distort the era. HARD-reject these —
 // unless the curated title itself asks for one.
 const NOVOCAL = /\b(instrumental|sped[- ]?up|slowed(?:\s*(?:\+|and|&)\s*reverb)?|8d audio|nightcore)\b/i;
+// The same idea as it appears on the ALBUM rather than the track, plus the
+// meme-upload family: the real recording with the voice taken out, sold as
+// "MONTERO (Call Me By Your Name) [but Lil Nas X is silent]". That one shipped
+// — it was pinned and played to everyone. Nothing else here could have caught
+// it: the giveaway lives only in the collection name, and coreNorm() deletes
+// bracketed suffixes before comparing, so it scored a perfect title match.
+// The bare word "instrumental" is deliberately NOT in here: plenty of genuinely
+// instrumental tracks sit on an album called "… Instrumental", and rejecting
+// those would cost real songs.
+const NOVOCAL_ALBUM = /\bbut\b[^,;]{0,40}\bis silent\b|\b(?:no|without|minus)\s+vocals?\b|\bvocals?\s+removed\b|\b(sped[- ]?up|slowed(?:\s*(?:\+|and|&)\s*reverb)?|8d audio|nightcore)\b/i;
 // versions that are merely OFF (live, acoustic, covers, remixes): penalized so
 // any clean take wins, but still allowed as a last resort — a live cut of the
 // right song beats no song. "unless wanted" guard: "Live Is Life" stays fine.
@@ -6557,12 +6573,14 @@ const OFFVER = /\b(live|acoustic|unplugged|demo|remix|cover|re-?recorded|orchest
 const LONGVER = /\b(extended|club mix|12["”]|dance mix|dub|megamix|long version)\b/i;
 function pickBest(results, song){
   const wantT = norm(song.title), wantA = norm(song.artist);
+  const badWanted = badWantedBy(song);
   const wantTC = coreNorm(song.title) || wantT;
   let best=null, bestScore=-1;
   for(const r of results){
     if(!r.previewUrl) continue;
-    if(BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"")) continue;
+    if(!badWanted && (BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"") || BADVER.test(r.trackName||""))) continue;
     if(NOVOCAL.test(r.trackName||"") && !NOVOCAL.test(song.title||"")) continue;
+    if(NOVOCAL_ALBUM.test(r.collectionName||"") && !NOVOCAL_ALBUM.test(song.title||"")) continue;
     const t = norm(r.trackName), tc = coreNorm(r.trackName) || t, a = norm(r.artistName);
     let tScore = 0, aScore = 0;
     if(t===wantT || tc===wantTC) tScore = 3;
