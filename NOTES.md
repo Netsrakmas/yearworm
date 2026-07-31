@@ -109,6 +109,43 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Friend-picker sheets: the footer was eating the primary action** (4.42.0 —
+  Sam sent a screenshot of "Pass this set on": "this looks a bit off").
+  Root cause, and it's a layout trap worth remembering: `.sheetfoot` is
+  `position:sticky; bottom:0`, and **"Share a link" sat in the flow BELOW it**.
+  A sticky bar pins to the bottom of the scrollport, so anything after it in
+  the DOM renders *underneath* it — the app's most important button was drawn
+  off the bottom of the sheet, and the 8th friend row peeked out from under
+  "Done". Anything that must stay reachable now lives INSIDE `.sheetfoot`.
+  Second bug in the same sheets: a sticky box is clamped to its containing
+  block, i.e. the sheet's **content** box, which sits 24px above the visual
+  bottom (the sheet's padding) — so even after moving the button in, the bar
+  still overlapped the last 10px of the list. Since the list now scrolls
+  itself, sticky buys nothing here: `.ovlist + .sheetfoot{position:static}`.
+  Structure now: `.ovlist` is its own scroll area, and where `:has()` is
+  supported the sheet is a flex column so the LIST absorbs the leftover height
+  (`max-height:38dvh` stays as the fallback). Verified at 360×640/780/900:
+  header and buttons always fit, the list gives up the difference, and a
+  half-row at the cut is the scroll hint. A 2-friend list is NOT stretched —
+  the sheet's height is auto, so flex-grow has no free space to distribute.
+  The rows also got the same treatment as the inbox rows in 4.41.0: the bare
+  ⚔️ glyph out at the right edge read as a label, not a control. It's now a
+  labelled pill (`.ovact`) — **Pick** in the picker, **Send** on pass-on,
+  turning into a dimmed **✓ Sent**. Deliberately word-only: the ~24px an icon
+  costs inside the pill is exactly what pushed "Groovy Flamingo" onto a second
+  line, and uneven row heights were the complaint two releases ago. It is a
+  styled `<span>`, not a `<button>` — the row already IS the button and
+  nesting one inside another is invalid HTML.
+  Test: `social.js` §5b-quater audits both sheets at 8 friends — every action
+  fully on-sheet and clear of the bar, the bar itself not clipped, no row
+  peeking out below it, no wrapped names, every row carrying a labelled pill.
+  ⚠️ Two measurement traps that made my first probes lie, both now commented in
+  the test: (1) a flex item's box is ONE rect even when its text wraps, so
+  `getClientRects().length > 1` never fires — compare height to line-height;
+  (2) a row inside `.ovlist` is clipped by it, so its raw rect claims it hangs
+  off the sheet when it doesn't — intersect with the list's rect first.
+  The guard was verified by reintroducing the original bug: it fails with
+  `pass-on: action(s) hidden under/below the button bar: ["Share a link"]`.
 - **Notices expire themselves; actions never do** (server-side, **no BUILD bump**
   — Sam: "misschien kunnen de notificaties nadat ze gezien zijn ook na een
   bepaalde tijd weggaan?"). `inbox` gained a `shown` column (lazy ALTER in

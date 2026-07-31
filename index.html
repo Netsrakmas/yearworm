@@ -443,10 +443,15 @@
     max-height:88vh; max-height:88dvh; overflow-y:auto; -webkit-overflow-scrolling:touch;
     animation:pop .22s cubic-bezier(.2,.9,.3,1.3);}
   .sheet:focus{outline:none;}
-  /* sticky exit for long results sheets — Done stays visible while content scrolls */
-  .sheetfoot{position:sticky; bottom:0; margin:14px -24px -24px; padding:10px 24px 16px;
-    background:linear-gradient(to top, var(--s1) 72%, rgba(18,26,46,0));
+  /* Sticky exit for long results sheets — Done stays visible while content
+     scrolls. Everything that must stay reachable belongs INSIDE it: a button
+     left in the flow below a long list ends up underneath this bar, which is
+     exactly how "Share a link" went missing on the pass-on sheet. */
+  .sheetfoot{position:sticky; bottom:0; margin:14px -24px -24px; padding:14px 24px 16px;
+    display:flex; flex-direction:column; gap:8px;
+    background:linear-gradient(to top, var(--s1) 82%, rgba(18,26,46,0));
     border-radius:0 0 var(--r-sheet) var(--r-sheet);}
+  .sheetfoot .btn{margin-top:0;}
   @keyframes pop{from{transform:scale(.9); opacity:0}to{transform:scale(1); opacity:1}}
   .verdict{font-family:"Anton"; font-size:34px; letter-spacing:1px; margin-bottom:4px;}
   .verdict.good{color:var(--good);} .verdict.bad{color:var(--bad);}
@@ -479,8 +484,35 @@
   .ovrow{display:flex; width:100%; align-items:center; gap:10px; background:none; border:none;
     border-bottom:1px solid var(--line); padding:11px 2px; color:var(--text); cursor:pointer; font:inherit; text-align:left;}
   .ovrow:last-of-type{border-bottom:none;}
+  /* A long friend list scrolls INSIDE the sheet, so the sheet itself doesn't.
+     Otherwise the sticky footer sits at the content-box bottom while the last
+     row keeps rendering in the 24px of padding below it — the row peeks out
+     from under the buttons, which is what "a bit off" looked like. */
+  .ovlist{max-height:38vh; max-height:38dvh; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  /* Better than the fixed cap above where :has() is available: the sheet
+     becomes a column and the LIST absorbs whatever height is left over, so the
+     header and the buttons always fit whatever the phone is. The fixed dvh cap
+     stays as the fallback. */
+  .sheet:has(.ovlist){display:flex; flex-direction:column;}
+  .sheet:has(.ovlist) .ovlist{flex:1 1 auto; min-height:0; max-height:none;}
+  /* When the list handles its own scrolling the sheet doesn't scroll, so the
+     footer has nothing to stick to — and a sticky box still gets clamped
+     against the sheet's content box, which is what let it sit 10px over the
+     bottom of the list. Plain flow here. */
+  .ovlist + .sheetfoot{position:static; flex:0 0 auto;}
   .ovrow b{flex:1; font-size:14px;}
-  .ovrow span:not(.avatar){flex:0 0 76px; text-align:right; font-size:13px;}
+  .ovrow span:not(.avatar):not(.ovact){flex:0 0 76px; text-align:right; font-size:13px;}
+  /* The row IS the button, so this is a visual affordance rather than a nested
+     <button> (invalid HTML). A bare icon out at the right edge reads as a label;
+     a pill says the row does something. Word only, no icon — the pill already
+     carries the affordance, and the ~24px an icon costs is what pushes a name
+     like "Groovy Flamingo" onto a second line. */
+  .ovrow .ovact{flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
+    padding:6px 11px; font-size:12.5px; line-height:16px; font-weight:700; color:var(--text);}
+  .ovrow:active .ovact{border-color:var(--gold);}
+  .ovrow[disabled]{opacity:.6; cursor:default;}
+  .ovrow[disabled] .ovact{background:none; border-color:transparent; color:var(--good);}
   #confetti{position:fixed; inset:0; pointer-events:none; z-index:55; overflow:hidden;}
   #confetti i{position:absolute; top:-4vh; width:9px; height:14px; border-radius:2px; opacity:.95;
     animation:confall linear forwards;}
@@ -509,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.41.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.42.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5775,15 +5807,16 @@ function openChallengePicker(){
   if(!LB.url || !fr.length){ startFreshChallenge(); return; }
   const rows = fr.slice(0, 8).map(f => `<button class="ovrow" onclick="closeOverlay(); challengeFriend('${f.id}')" aria-label="Challenge ${esc(f.handle)}">
       <span class="avatar" aria-hidden="true">${friendAvatar(f)}</span><b>${esc(f.handle)}</b>
-      <span style="flex:0 0 auto" aria-hidden="true">${ico('swords',1)}</span></button>`).join("");
+      <span class="ovact">Pick</span></button>`).join("");
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
     <div class="winner-emoji">⚔️</div>
     <div class="verdict good" style="margin-top:2px">Who are you challenging?</div>
     <div class="muted" style="font-size:12.5px; margin:2px 0 10px">You play 5 songs first — then they get your gauntlet.</div>
-    ${rows}
-    <button class="btn pink" style="margin-top:12px" onclick="closeOverlay(); startFreshChallenge()">${ico('link',1)} Anyone — share a link</button>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="closeOverlay()">Cancel</button>`;
+    <div class="ovlist">${rows}</div>
+    <div class="sheetfoot">
+      <button class="btn pink" onclick="closeOverlay(); startFreshChallenge()">${ico('link',1)} Anyone — share a link</button>
+      <button class="btn ghost sm" onclick="closeOverlay()">Cancel</button></div>`;
   showSheet();
 }
 async function playInboxChal(id){
@@ -6129,11 +6162,12 @@ function openPassOnSheet(){
     <div class="winner-emoji">📤</div>
     <div class="verdict good" style="margin-top:2px">Pass this set on</div>
     <div class="muted" style="font-size:12.5px; margin:2px 0 10px">Same ${RUN_LEN} songs — you set <b style="color:var(--text)">${p.score}/${RUN_LEN}</b> to beat.</div>
-    ${fr.slice(0,8).map(f=>`<button class="ovrow" onclick="sendChal('${f.id}','${chalKey(p.idx)}',${p.score},${p.timeMs}); this.disabled=true; this.querySelector('span:last-child').textContent='sent ✓'">
+    <div class="ovlist">${fr.slice(0,8).map(f=>`<button class="ovrow" onclick="sendChal('${f.id}','${chalKey(p.idx)}',${p.score},${p.timeMs}); this.disabled=true; this.querySelector('.ovact').textContent='✓ Sent'">
       <span class="avatar" aria-hidden="true">${friendAvatar(f)}</span><b>${esc(f.handle)}</b>
-      <span style="flex:0 0 auto" aria-hidden="true">${ico('swords',1)}</span></button>`).join("")}
-    <button class="btn pink" style="margin-top:12px" onclick="shareChallengeIdx(${JSON.stringify(p.idx)}, ${p.score}, ${tSec})">${ico('link',1)} Share a link</button>
-    <div class="sheetfoot"><button class="btn ghost" style="margin-top:0" onclick="backToSetup()">Done</button></div>`;
+      <span class="ovact">Send</span></button>`).join("")}</div>
+    <div class="sheetfoot">
+      <button class="btn pink" style="margin-top:0" onclick="shareChallengeIdx(${JSON.stringify(p.idx)}, ${p.score}, ${tSec})">${ico('link',1)} Share a link</button>
+      <button class="btn ghost" onclick="backToSetup()">Done</button></div>`;
   showSheet();
 }
 /* react later, from the feed: same fixed reaction set, aimed at a specific friend */

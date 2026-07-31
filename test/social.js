@@ -270,6 +270,68 @@ const server = http.createServer((req,res)=>{
   if(await pg.$('#overlay.show')) throw new Error('picker did not close on Cancel');
   if(!(await pg.$('.modecard'))) throw new Error('cancel should stay in the lobby');
   console.log('challenge picker: friends listed + link fallback + cancel OK');
+
+  // 5b-quater) both friend-picker sheets with a FULL list (8 friends) on a
+  // narrow phone. This is where the sticky footer used to swallow the primary
+  // action: "Share a link" sat in the flow BELOW a sheetfoot that pinned itself
+  // to the bottom, so it rendered underneath the bar and off the sheet.
+  const pickerAudit = async (open, tag) => {
+    await pg.evaluate(()=>{ document.getElementById('overlay').classList.remove('show'); });
+    await pg.evaluate(()=>{
+      _social = _social || {};
+      _social.friends = Array.from({length:8}, (_,i)=>({ id:'p'+i, handle:['Turbo Penguin','Groovy Flamingo','Sjaeky',
+        'Vinyl Flamingo','Retro Llama','Shady Penguin','Retro Walrus','Turbo Otter'][i], avatar:'m:'+(i+2), w:0,l:0,t:0 }));
+    });
+    await pg.evaluate(open);
+    await pg.waitForTimeout(350);
+    const r = await pg.evaluate(()=>{
+      const sheet = document.getElementById('sheet');
+      const list = sheet.querySelector('.ovlist');
+      const foot = sheet.querySelector('.sheetfoot');
+      const rows = [...sheet.querySelectorAll('.ovrow')];
+      const sr = sheet.getBoundingClientRect();
+      const clip = list ? list.getBoundingClientRect() : sr;
+      const limit = foot ? foot.getBoundingClientRect().top : sr.bottom;
+      // every action must be fully on-sheet and clear of the button bar
+      const buried = [...sheet.querySelectorAll('.btn')].filter(b=>{
+        if(foot && foot.contains(b)) return false;
+        const q = b.getBoundingClientRect();
+        return q.bottom > limit + 1 || q.bottom > sr.bottom + 1;
+      }).map(b=>b.textContent.trim());
+      const footBtns = foot ? [...foot.querySelectorAll('.btn')].map(b=>b.textContent.trim()) : [];
+      const footClipped = foot ? foot.getBoundingClientRect().bottom > sr.bottom + 1 : false;
+      // rows showing through below the buttons — measure the CLIPPED part, a
+      // row inside .ovlist is cut off by it and its raw rect lies about this
+      const peeking = rows.filter(q=>{ const b = q.getBoundingClientRect();
+        const vis = Math.min(b.bottom, clip.bottom);
+        return vis > Math.min(limit, sr.bottom) + 1 && vis > Math.max(b.top, clip.top); }).length;
+      // a flex item's box is ONE rect even when its text wraps, so compare
+      // against the line height rather than counting rects
+      const wrapped = rows.filter(q=>{ const b = q.querySelector('b'); if(!b) return false;
+        const lh = parseFloat(getComputedStyle(b).lineHeight) || 20;
+        return b.getBoundingClientRect().height > lh * 1.4; }).map(q=>q.querySelector('b').textContent);
+      return { rows: rows.length, hasList: !!list, buried, footBtns, footClipped, peeking, wrapped,
+               acts: rows.map(q=>{ const a = q.querySelector('.ovact'); return a && a.textContent.trim(); }) };
+    });
+    if(r.rows !== 8) throw new Error(tag+': expected 8 rows, got '+r.rows);
+    if(!r.hasList) throw new Error(tag+': friend list is not its own scroll area');
+    if(r.buried.length) throw new Error(tag+': action(s) hidden under/below the button bar: '+JSON.stringify(r.buried));
+    if(r.footClipped) throw new Error(tag+': the button bar itself runs off the sheet');
+    if(!r.footBtns.length) throw new Error(tag+': no actions in the button bar');
+    if(r.peeking) throw new Error(tag+': '+r.peeking+' friend row(s) peek out below the buttons');
+    if(r.wrapped.length) throw new Error(tag+': name(s) wrap onto a second line: '+JSON.stringify(r.wrapped));
+    if(r.acts.some(a=>!a)) throw new Error(tag+': a row has no labelled action pill');
+    return r;
+  };
+  const pk = await pickerAudit(()=>openChallengePicker(), 'picker');
+  await pg.evaluate(()=>{ S.passSet = { idx:[1,2,3,4,5], score:3, timeMs:41000 }; });
+  const po = await pickerAudit(()=>openPassOnSheet(), 'pass-on');
+  if(!po.footBtns.some(t=>/Share a link/.test(t))) throw new Error('pass-on: Share a link is not in the button bar: '+JSON.stringify(po.footBtns));
+  if(!pk.footBtns.some(t=>/share a link/i.test(t))) throw new Error('picker: link fallback is not in the button bar: '+JSON.stringify(pk.footBtns));
+  console.log('picker sheets @8 friends: labelled pills, actions reachable, no wrapped names OK ·',
+    pk.acts[0]+'/'+po.acts[0]);
+
+  await pg.evaluate(()=>{ document.getElementById('overlay').classList.remove('show'); });
   await pg.evaluate(()=>goTab('friends'));   // later sections expect the Friends tab
   await pg.waitForTimeout(300);
 
