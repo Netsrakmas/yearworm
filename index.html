@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.43.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.43.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6340,13 +6340,16 @@ function renderFriendsCard(st){
 
 /* challenge-set boards: every finished run on a shared set reports to /chal,
    so the challenger SEES who played their set — no send-back link needed */
-async function lbSubmitChal(setkey, score, timeMs, daily){
+async function lbSubmitChal(setkey, score, timeMs, daily, duel){
   if(!LB.url) return null;
   try{
     // daily flag: the whole world shares the daily set — the server must NOT
     // treat its first finisher as the set's "owner" (push-per-player spam)
+    // duel flag: this run is ALSO reported via /social, which pushes a better
+    // message for the same moment (it knows who won). Without this the
+    // challenger gets the same event twice, in the same minute.
     const r = await fetch(LB.url+"/chal", { method:"POST", headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ set:setkey, device:deviceId(), nick:lbNick(), score, timeMs, daily: !!daily }) });
+      body: JSON.stringify({ set:setkey, device:deviceId(), nick:lbNick(), score, timeMs, daily: !!daily, duel: !!duel }) });
     return r.ok ? await r.json() : null;
   }catch(e){ return null; }
 }
@@ -8412,7 +8415,10 @@ function overlayRunOver(){
     // remember the best world rank ever reached — powers the Champion badge
     if(b && b.me && b.me.rank){ const d = loadDaily(); if(!d.bestRank || b.me.rank < d.bestRank){ d.bestRank = b.me.rank; saveDaily(d); } }
   });
-  if(LB.url && setIdx && setIdx.length>=2) lbSubmitChal(chalKey(setIdx), score, me.timeMs||0, daily).then(b=>{
+  // msgId (not just reactTo) is what marks an INBOX challenge — a link-played
+  // duel has no social report, so it still needs this push
+  const viaInbox = !!(S.reactTo && S.reactTo.msgId);
+  if(LB.url && setIdx && setIdx.length>=2) lbSubmitChal(chalKey(setIdx), score, me.timeMs||0, daily, viaInbox).then(b=>{
     const el = document.getElementById("chalBoard"); if(el && b) el.innerHTML = chalOthersHTML(b);
   });
 }

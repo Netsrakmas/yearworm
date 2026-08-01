@@ -45,7 +45,7 @@ const server = http.createServer((req,res)=>{
 
   // tiny /social state machine
   const state = { me: null, friends: [], requests: [], outgoing: 0, inbox: [] };
-  const actions = [];
+  const actions = [], chalPosts = [];
   await pg.route(/lb\.test/, route=>{
     const req = route.request();
     const u = req.url();
@@ -66,6 +66,10 @@ const server = http.createServer((req,res)=>{
         headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}});
       return;
     }
+    // /chal submissions are recorded too: the `duel` flag on them is what stops
+    // the challenger being notified twice for one run (the /social result push
+    // covers that moment already)
+    if(/\/chal/.test(u) && req.method()==='POST'){ try{ chalPosts.push(JSON.parse(req.postData())); }catch(e){} }
     // daily/chal endpoints: minimal happy responses
     const body = /\/chal/.test(u)
       ? { set:'x', total:1, results:[{nick:'You',score:2,timeMs:9000,you:true}] }
@@ -340,6 +344,12 @@ const server = http.createServer((req,res)=>{
   const resAct = actions.find(a=>a.action==='result');
   if(!resAct || resAct.id!==7 || !Number.isFinite(resAct.score)) throw new Error('result POST wrong: '+JSON.stringify(resAct));
   if(!actions.some(a=>a.action==='seen' && a.ids && a.ids.includes(7))) throw new Error('challenge not consumed (seen) at run end');
+  // the same run is reported to /chal as well; without duel:true the server
+  // sends its own "played your challenge" push on top of the social one and
+  // the challenger gets the identical event twice, in the same minute
+  const dup = chalPosts.filter(p=>!p.read && p.score != null);
+  if(!dup.length) throw new Error('inbox challenge never reached the set board');
+  if(!dup.every(p=>p.duel === true)) throw new Error('inbox-challenge /chal submit is missing duel:true: '+JSON.stringify(dup));
   if(await pg.$('#confetti')) throw new Error('confetti on a lost duel');
   console.log('duel result + seen reported at run end (id 7), no confetti on a loss OK');
 

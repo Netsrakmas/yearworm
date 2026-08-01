@@ -1225,7 +1225,12 @@ export default {
       if(!existed && !b.daily){ try{
         const submitter = await userByDevice(env, device);
         if(submitter) await env.DB.prepare("INSERT OR IGNORE INTO chal_owner (setkey, user_id, created) VALUES (?1,?2,?3)").bind(set, submitter.id, Date.now()).run();
-        const owner = await env.DB.prepare("SELECT user_id FROM chal_owner WHERE setkey=?1").bind(set).first();
+        // NOT for a direct friend challenge (b.duel): that run is ALSO reported
+        // through /social, which sends a better push for the same moment — it
+        // knows who won and lands on the Friends tab where the result row is.
+        // Both fired, so the challenger got the identical event twice, same
+        // minute. Ownership above is still recorded; only the push stands down.
+        const owner = b.duel ? null : await env.DB.prepare("SELECT user_id FROM chal_owner WHERE setkey=?1").bind(set).first();
         if(owner && owner.user_id && (!submitter || submitter.id !== owner.user_id)){
           const cnt = await env.DB.prepare("SELECT COUNT(*) AS n FROM chals WHERE setkey=?1").bind(set).first();
           if(cnt && cnt.n <= 20){

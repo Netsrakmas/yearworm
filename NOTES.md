@@ -109,6 +109,31 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **One event, two pushes** (4.43.1 — Sam screenshotted both, 08:26 and 08:26:
+  "Vinyl Flamingo played your challenge 🎯 / They scored 3/5 on your set" *and*
+  "Vinyl Flamingo played your challenge / You won! they scored 3/5").
+  A friend finishing your direct challenge is reported through **two** endpoints
+  and each one notified independently: `/chal` (the set's leaderboard, which
+  pushes the set's owner) and `/social` `action:'result'` (the duel record,
+  which pushes the challenger). Neither knew about the other.
+  The social one wins — it knows *who won* and lands on the Friends tab where
+  the result row is. The client now sends `duel:true` on the `/chal` submit for
+  an inbox challenge and the worker skips only the push. Same shape as the
+  existing `daily` flag. Ownership registration and the board row are
+  deliberately left intact: the opponent still appears on the set's leaderboard.
+  The trigger is `S.reactTo.msgId`, **not** `S.reactTo` — a link-played duel has
+  no social report, so that path is the only notification there is and must keep
+  firing. The test covers both directions.
+  New tracked suite `test/pushdupe.js` (real worker.js over a SQLite D1 shim,
+  counting pushes). Verified it fails without the fix, with exactly the symptom
+  in the screenshot: `should notify Alice ONCE, got 2 pushes`. `social.js` now
+  records `/chal` POST bodies and asserts the client half sends the flag.
+  ⚠️ **`test/worker-push-test.reference.js` is in .gitignore and lives only in
+  the scratchpad — it was wiped mid-session and is gone.** That was the richest
+  server test in the project (push crypto, pins, boards, retirement). It is
+  untracked because it carried a hard-coded VAPID private key. `pushdupe.js`
+  shows the way out: **generate the keypair at run time** with WebCrypto, and
+  there is nothing secret left to hide. Worth rebuilding that way.
 - **A meme edit was pinned and played to everyone** (4.43.0 — Sam: "ik dacht dat
   ik voor dit nummer een ander lied hoorde"). Montero resolved to
   `MONTERO (Call Me By Your Name) [but Lil Nas X is silent]` — the real
