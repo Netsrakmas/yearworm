@@ -66,6 +66,16 @@ CREATE TABLE IF NOT EXISTS inbox (
 );
 CREATE INDEX IF NOT EXISTS idx_inbox_to ON inbox(to_user, seen, created DESC);
 
+-- "this clip has no singing": the one defect the version picker cannot see,
+-- because it reads track/album text and the problem is in the audio. One vote
+-- per device; the track retires itself once CLIP_FLAG_RETIRE devices agree.
+CREATE TABLE IF NOT EXISTS clip_flags (
+  track_id  INTEGER NOT NULL,
+  device    TEXT NOT NULL,
+  at        INTEGER NOT NULL,
+  PRIMARY KEY (track_id, device)
+);
+
 -- head-to-head duel results: one row per answered inbox challenge (msg_id
 -- dedupes — the first reported result stands). Powers the friends leaderboard.
 CREATE TABLE IF NOT EXISTS duels (

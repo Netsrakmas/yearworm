@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.43.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.44.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -8102,12 +8102,26 @@ async function recheckOverlay(){
 
 // data-correction is collapsed and saves for NEXT time only — it can't flip a result
 function flagBlockHTML(id, year){
-  return `<details class="report-yr"><summary>🚩 Wrong year in our data?</summary>
+  return `<details class="report-yr"><summary>🚩 Something wrong with this card?</summary>
         <div class="year-fix" style="margin-top:8px;"><span class="muted" style="font-size:11px">correct year</span>
           <input class="rev-yr" type="number" inputmode="numeric" value="${year}"
             onchange="saveYear('${id}', this.value); toast('Thanks — fixed for next time.')" /></div>
         ${REPORT.url ? `<button class="btn ghost sm" style="margin-top:8px" onclick="reportYear('${id}', ${year})">${ico('share',1)} Report this fix so everyone gets it</button>` : ``}
+        ${LB.url ? `<button class="btn ghost sm" id="clipFlagBtn" style="margin-top:8px" onclick="flagClip('${id}')">🔇 This clip has no singing</button>` : ``}
       </details>`;
+}
+/* A 30-second preview can be unguessable without being WRONG: a long intro, a
+   12" mix that previews its build-up, an upload with the vocal stripped. Our
+   picker reads text — it cannot hear any of that, and neither can I from a
+   machine Apple blocks. Players are the only sensor, so give them a button and
+   let the server retire a track once enough of them agree (see /flagclip). */
+async function flagClip(id){
+  const track = parseInt(String(id).replace(/^it/, ""), 10);
+  if(!LB.url || !Number.isFinite(track)) return;
+  const btn = document.getElementById("clipFlagBtn");
+  if(btn){ btn.disabled = true; btn.textContent = "🔇 Reported — thanks!"; }
+  try{ await fetch(LB.url + "/flagclip", { method:"POST", headers:{ "content-type":"application/json" },
+    body: JSON.stringify({ device: deviceId(), track }) }); }catch(e){ /* a metric must never surface */ }
 }
 function overlayReveal(correct, p){
   const c = S.current;

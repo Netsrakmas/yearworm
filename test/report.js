@@ -85,6 +85,17 @@ const server = http.createServer((req,res)=>{
   // without it (hearts replaced the flag block) and it's the most-replayed mode
   await pg.evaluate(()=>{ closeOverlay(); backToSetup(); goTab('play'); });
   await pg.waitForTimeout(400);
+  // the "no singing" button needs a server to report to
+  let flagged = null;
+  await pg.route(/lb\.test/, route=>{
+    if(/flagclip/.test(route.request().url())){
+      try{ flagged = JSON.parse(route.request().postData()); }catch(e){}
+      return route.fulfill({contentType:'application/json', body: JSON.stringify({ok:true, votes:1}),
+        headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'content-type'}});
+    }
+    route.fulfill({contentType:'application/json', body:'{}', headers:{'Access-Control-Allow-Origin':'*'}});
+  });
+  await pg.evaluate(()=>{ LB.url='https://lb.test'; });
   await pg.click('.modecard:has-text("Survival")');
   await pg.click('text=🎯 Start survival');
   await pg.waitForSelector('.slot.active',{timeout:20000});
@@ -96,5 +107,22 @@ const server = http.createServer((req,res)=>{
   await pg.click('.report-yr summary');
   if(!await pg.$('#sheet .rev-yr')) throw new Error('survival year input not reachable');
   console.log('survival reveal: hearts + year-report block present ✓');
+
+  // "this clip has no singing" — the one defect pickBest is structurally blind
+  // to, since it reads track/album TEXT and the problem is in the audio
+  const cardId = await pg.evaluate(()=>S.current && S.current.id);
+  if(!/^it\d+$/.test(cardId||'')) throw new Error('unexpected card id: '+cardId);
+  const clipBtn = await pg.$('#clipFlagBtn');
+  if(!clipBtn) throw new Error('no clip-report button on the reveal');
+  await clipBtn.click();
+  await pg.waitForTimeout(400);
+  if(!flagged) throw new Error('no POST reached /flagclip');
+  if(flagged.track !== Number(cardId.slice(2))) throw new Error('wrong track reported: '+JSON.stringify(flagged)+' for '+cardId);
+  if(!/^[a-f0-9]{16,64}$/i.test(flagged.device||'')) throw new Error('flag carries no usable device token: '+JSON.stringify(flagged));
+  // and it must not carry the answer along with it
+  if('year' in flagged || 'title' in flagged) throw new Error('flag leaks card data: '+JSON.stringify(flagged));
+  const btnState = await pg.$eval('#clipFlagBtn', e=>e.disabled+'|'+e.textContent);
+  if(!/^true\|/.test(btnState) || !/thanks/i.test(btnState)) throw new Error('button did not confirm + lock: '+btnState);
+  console.log('clip report: posts the pinned trackId, locks the button ✓');
   await browser.close(); server.close();
 })().catch(e=>{console.error('FAIL:',e.message);process.exit(1);});

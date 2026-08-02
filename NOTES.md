@@ -109,6 +109,41 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Players can retire a bad clip** (4.44.0 — Sam, on Blue Monday and I Ran:
+  "looks like these were instrumental as well").
+  **What I could verify:** both are pinned to legitimate releases, not meme
+  edits — `Blue Monday (2023 Digital Master)` (track 1706916906) and an
+  `I Ran (So Far Away)` single (track 1874711522). So this is NOT the 4.43.0
+  bug again. **What I could not:** Apple is unreachable from the dev box —
+  checked, not assumed, both `itunes.apple.com` and `audio-ssl.itunes.apple.com`
+  return nothing through the proxy. I cannot hear the clips or see what other
+  versions exist, so I did **not** blacklist these two on a hunch. Retiring a
+  track is permanent, and guessing is how the Cloudflare episode went wrong.
+  The likely cause is structural rather than a mispick: a 30-second window can
+  land on an instrumental passage. Blue Monday's vocal doesn't arrive until
+  ~1:35 of a 7:29 twelve-inch, and our own rules make the alternatives *worse* —
+  the short cut is "Blue Monday '88", which `OFFVER` penalises as a remix while
+  `yBonus` rewards the 1983 original. Re-rolling would very likely land on the
+  same audio.
+  **So the fix is a sensor, not a rule.** `pickBest` reads track and album TEXT;
+  the defect is in the audio, and it is blind to it by construction. The reveal's
+  flag block (now "🚩 Something wrong with this card?") gained
+  **"🔇 This clip has no singing"** → `POST /flagclip {device, track}`.
+  `clip_flags` is PK(track_id, device), so one vote per device, and at
+  `CLIP_FLAG_RETIRE = 2` distinct devices the track retires itself through the
+  machinery 4.43.0 built: blacklist → drop the cached search → drop the pin.
+  Threshold reasoning: **1 is too few** — "I didn't recognise it" is not "there
+  is no voice in it", and one misread would delete a good recording. **3 is too
+  many** — with a handful of players a threshold nobody reaches is the same as
+  no feature. `retireTrack()` is now a shared helper; `RETIRED_TRACKS` and the
+  vote path both call it, so the delete ORDER (cache before pin) can't drift
+  apart in two places.
+  Tests: `clipflag.js` (one device = one vote even when it repeats itself; two
+  distinct devices retire; the cached search really is cleared, or the next
+  lookup would serve the retired track straight from cache; votes don't leak
+  between tracks; the table carries nothing but track/device/timestamp) and a
+  `report.js` section proving the button posts the *pinned trackId*, carries no
+  card data, and locks itself after one tap.
 - **One event, two pushes** (4.43.1 — Sam screenshotted both, 08:26 and 08:26:
   "Vinyl Flamingo played your challenge 🎯 / They scored 3/5 on your set" *and*
   "Vinyl Flamingo played your challenge / You won! they scored 3/5").

@@ -18,6 +18,21 @@ const NOTICE_KINDS = { friend: 1, result: 1, react: 1 };
 const RETIRED_TRACKS = [
   1560908588,   // "MONTERO (Call Me By Your Name) [but Lil Nas X is silent]" — the vocals are stripped out
 ];
+// How many DISTINCT devices have to call a clip unsingable before it retires
+// itself. Two, not one: a single misread ("I didn't recognise it" is not the
+// same as "there is no voice in it") must not delete a good recording. Two,
+// not three: this game has a handful of players, and a threshold nobody ever
+// reaches is the same as no feature at all.
+const CLIP_FLAG_RETIRE = 2;
+// Retire a track everywhere: blacklist it, drop the cached search it came from,
+// then drop the pin. That ORDER matters — the cached row is found THROUGH the
+// pin, so removing the pin first would strand it and the next lookup would
+// serve the retired track straight out of cache.
+async function retireTrack(env, id){
+  try{ await env.DB.prepare("INSERT OR IGNORE INTO dead_ids (track_id, at) VALUES (?1,?2)").bind(id, Date.now()).run(); }catch(e){}
+  try{ await env.DB.prepare("DELETE FROM previews WHERE term IN (SELECT term FROM pins WHERE track_id=?1)").bind(id).run(); }catch(e){}
+  try{ await env.DB.prepare("DELETE FROM pins WHERE track_id=?1").bind(id).run(); }catch(e){}
+}
 
 const dayNow = () => Math.max(1, Math.floor((Date.now() - DAILY_EPOCH) / 864e5) + 1);
 
@@ -1131,6 +1146,29 @@ export default {
       return new Response(null, { status: 204, headers: cors });
     }
 
+    // "this clip has no singing" — the one defect our picker structurally cannot
+    // detect, because it reads text and the problem is in the audio. One vote
+    // per device (PRIMARY KEY), and the track retires itself once
+    // CLIP_FLAG_RETIRE distinct devices agree.
+    if(url.pathname === "/flagclip" && req.method === "POST"){
+      let b; try{ b = await req.json(); }catch(e){ b = {}; }
+      const device = String(b.device || "");
+      const track = parseInt(b.track, 10);
+      if(!/^[a-f0-9]{16,64}$/i.test(device)) return json({ error: "bad device" }, 400, cors);
+      if(!Number.isFinite(track) || track <= 0) return json({ error: "bad track" }, 400, cors);
+      let votes = 0;
+      try{
+        await env.DB.prepare("INSERT OR IGNORE INTO clip_flags (track_id, device, at) VALUES (?1,?2,?3)")
+          .bind(track, device, Date.now()).run();
+        const c = await env.DB.prepare("SELECT COUNT(*) AS n FROM clip_flags WHERE track_id=?1").bind(track).first();
+        votes = (c && c.n) || 0;
+      }catch(e){ /* table not migrated yet — a report must never break a game */ }
+      // Report the count, not whether it retired: the number is the honest thing
+      // to know, and the client shows the same "thanks" either way.
+      if(votes >= CLIP_FLAG_RETIRE) await retireTrack(env, track);
+      return json({ ok: true, votes }, 200, cors);
+    }
+
     // Owner-only: aggregate business metrics. Disabled unless STATS_KEY is set,
     // so it can never be open by accident.
     if(url.pathname === "/stats"){
@@ -1329,11 +1367,8 @@ export default {
     // retire hand-listed bad picks: blacklist the track, then drop the cached
     // search AND the pin that points at it. Order matters — the cached row is
     // found THROUGH the pin, so deleting the pin first would strand it.
-    for(const id of RETIRED_TRACKS){
-      try{ await env.DB.prepare("INSERT OR IGNORE INTO dead_ids (track_id, at) VALUES (?1,?2)").bind(id, Date.now()).run(); }catch(e){}
-      try{ await env.DB.prepare("DELETE FROM previews WHERE term IN (SELECT term FROM pins WHERE track_id=?1)").bind(id).run(); }catch(e){}
-      try{ await env.DB.prepare("DELETE FROM pins WHERE track_id=?1").bind(id).run(); }catch(e){}
-    }
+    try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS clip_flags (track_id INTEGER NOT NULL, device TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (track_id, device))").run(); }catch(e){}
+    for(const id of RETIRED_TRACKS) await retireTrack(env, id);
     // per-day survival scores → daily & rolling-7-day friend boards
     try{ await env.DB.prepare("CREATE TABLE IF NOT EXISTS sscores (day INTEGER, user_id TEXT, score INTEGER, created INTEGER)").run(); }catch(e){}
     try{ await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_sscores ON sscores (user_id, day)").run(); }catch(e){}
