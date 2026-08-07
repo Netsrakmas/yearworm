@@ -109,6 +109,57 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Classic Rock 200 — the first new playable deck** (4.45.0 — Sam: "lets create
+  another deck, based on arrow (dutch rock channel) top 200 rock hits").
+  Two corrections up front. It is the Arrow Classic Rock **500**, not 200. And
+  the authoritative list could not be fetched: hitnoteringen.nl,
+  hitdossier-online.nl, Wikipedia and Spotify are all `EGRESS_BLOCKED` from this
+  box (checked, not assumed). So this is **not** the official chart and is not
+  named as if it were — a real broadcaster's name on a deck implies an
+  association that doesn't exist. It is Arrow's *territory*: album rock, hard
+  rock, prog, grunge, and 16 Dutch entries (Golden Earring, Focus, Vandenberg,
+  Herman Brood, Kayak, Cuby + Blizzards, Normaal, Shocking Blue, Earth & Fire,
+  Anouk, Kane, Within Temptation) — which is what separates it from the existing
+  60-song Rock Anthems, an entirely Anglo-American list.
+  200 songs, 120 artists, max 3 per act, ~50% already in previews.json.
+  Curated by round-robin: every act's most obvious song first, then their second,
+  so no band can dominate a five-song run and nobody's signature track is cut so
+  a deep cut can live.
+  ⚠️ **A new themed deck is invisible by default.** `DECKS.splice(6)` throws away
+  every themed deck and keeps them only as pool food, so this one had to be
+  captured before the splice and pushed back after — and it goes LAST, because
+  `DECKS[0]` is the boot selection and that must stay Top 10 Hits.
+  Carousel: pages now spread EVENLY (`ceil(n / ceil(n/6))`) instead of filling to
+  six and stranding the remainder. Every page is as tall as the fullest, so the
+  7th deck sat alone under two empty rows. 7 decks page as 4+3.
+
+- **The deck year convention is the SINGLE year, not the album year** — and this
+  reverses what I told Sam in 4.43.0. Building the deck surfaced 13 songs that
+  already existed with a different year, and **12 of the 12 unambiguous cases
+  point the same way**: Sultans of Swing (album Oct 78 / single Jan 79) is 1979,
+  Wind of Change (album Nov 90 / single Jan 91) is 1991, Paradise City (album 87
+  / single 88) is 1988, Heart of Glass, I Love Rock 'n' Roll, Wanted Dead or
+  Alive, The Joker, Fox on the Run, Lightning Crashes, In the End, Boulevard of
+  Broken Dreams, Use Somebody — all dated by the single.
+  That is the right rule for this game: players place by *when a song was a
+  thing*, not by pressing date. So I was wrong to "fix" **More Than a Woman**
+  from 1978 to 1977 on the album-year argument — reverted to 1978, and **Night
+  Fever** (single Feb 1978) moves 1977 → 1978, which was the actual outlier all
+  along. New decks adopt the catalogue's existing year wherever a song is already
+  present, so there is one year per song by construction.
+
+- **`test/decks.js` (new) caught two live contradictions on its first run.**
+  Lionel Richie "Hello" was 1983 in EXTRA_SONGS and 1984 in TOP10_SONGS; Rednex
+  "Cotton Eye Joe" was 1995 in two lists and 1994 in TOP10_SONGS. Because
+  TOP10_SONGS is *itself* the default visible deck, the same song gave a
+  different answer depending on which deck you picked. Both times the per-year NL
+  chart list held the convention-correct value; the loose lists were aligned to
+  it. The suite asserts: the new deck survives the splice and is selectable, its
+  songs reach the shared pool (or the daily could never draw them), Top 10 stays
+  DECKS[0], every entry has a sane year/artist/title and is unique within its
+  deck, no song carries two different years anywhere, and the carousel pages stay
+  balanced and drop nothing.
+
 - **Players can retire a bad clip** (4.44.0 — Sam, on Blue Monday and I Ran:
   "looks like these were instrumental as well").
   **What I could verify:** both are pinned to legitimate releases, not meme
