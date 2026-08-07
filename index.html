@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.45.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.45.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6791,7 +6791,15 @@ function pickBest(results, song){
     if(!r.previewUrl) continue;
     if(!badWanted && (BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"") || BADVER.test(r.trackName||""))) continue;
     if(NOVOCAL.test(r.trackName||"") && !NOVOCAL.test(song.title||"")) continue;
-    if(NOVOCAL_ALBUM.test(r.collectionName||"") && !NOVOCAL_ALBUM.test(song.title||"")) continue;
+    // Test the album marker against a NORMALISED haystack that includes the
+    // track's own URL. Two things this fixes, both learned the hard way: the
+    // Montero meme upload sailed through a check on collectionName alone (the
+    // field evidently doesn't carry the words, but the album slug in
+    // trackViewUrl does), and the slug spells them "but-lil-nas-x-is-silent",
+    // so matching raw text finds nothing — punctuation has to become spaces
+    // first, exactly as norm() already does everywhere else here.
+    const meta = norm(r.collectionName || "") + " " + norm(r.trackViewUrl || "");
+    if(NOVOCAL_ALBUM.test(meta) && !NOVOCAL_ALBUM.test(song.title||"")) continue;
     const t = norm(r.trackName), tc = coreNorm(r.trackName) || t, a = norm(r.artistName);
     let tScore = 0, aScore = 0;
     if(t===wantT || tc===wantTC) tScore = 3;

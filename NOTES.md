@@ -109,6 +109,31 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **The 4.43.0 meme-edit fix did not actually work, and the harvest proved it**
+  (4.45.1). The weekly job re-resolved Montero and picked the *same* silent
+  upload. The run log gives it away: successes print nothing, and the output
+  jumps `[17/94]` straight to `[19/94]` — #18 was the one song that resolved,
+  and it resolved to the meme album again.
+  Ruled out one at a time, not guessed: the harvest ran on top of 4.44.0 (has
+  the fix), `loadPicker()` extracts 5312 chars that do contain `NOVOCAL_ALBUM`
+  and the album check, and feeding that extracted picker a fixture where
+  `collectionName` carries the marker rejects it correctly. So the picker was
+  right and the DATA was different from what I assumed.
+  **The marker is not in `collectionName` at all** — it lives in the album slug
+  of `trackViewUrl`, which is in previews.json and therefore visible from here
+  even though Apple isn't. And there it reads `but-lil-nas-x-is-silent`, so a
+  raw regex finds nothing either: matching needs the punctuation turned into
+  spaces first.
+  Fix: test the album pattern against a NORMALISED haystack of
+  `collectionName + trackViewUrl`. Two lessons: check the field you can actually
+  see rather than the one you assume is populated, and `norm()` the haystack —
+  every other comparison in `pickBest` already does.
+  The new `pickparity` fixture uses the real ids and the real URL out of the
+  harvest's own commit, and it fails without the fix.
+  ⚠️ Still unknown and worth remembering: I never saw the raw Apple record, so I
+  cannot say WHY `collectionName` lacks the words. The fix works regardless of
+  which of the two fields carries them, which is the point.
+
 - **Classic Rock 200 — the first new playable deck** (4.45.0 — Sam: "lets create
   another deck, based on arrow (dutch rock channel) top 200 rock hits").
   Two corrections up front. It is the Arrow Classic Rock **500**, not 200. And

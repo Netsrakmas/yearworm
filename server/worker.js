@@ -131,7 +131,15 @@ function pickBest(results, song){
     if(!r.previewUrl) continue;
     if(!badWanted && (BADVER.test(r.artistName||"") || BADVER.test(r.collectionName||"") || BADVER.test(r.trackName||""))) continue;
     if(NOVOCAL.test(r.trackName||"") && !NOVOCAL.test(song.title||"")) continue;
-    if(NOVOCAL_ALBUM.test(r.collectionName||"") && !NOVOCAL_ALBUM.test(song.title||"")) continue;
+    // Test the album marker against a NORMALISED haystack that includes the
+    // track's own URL. Two things this fixes, both learned the hard way: the
+    // Montero meme upload sailed through a check on collectionName alone (the
+    // field evidently doesn't carry the words, but the album slug in
+    // trackViewUrl does), and the slug spells them "but-lil-nas-x-is-silent",
+    // so matching raw text finds nothing — punctuation has to become spaces
+    // first, exactly as norm() already does everywhere else here.
+    const meta = norm(r.collectionName || "") + " " + norm(r.trackViewUrl || "");
+    if(NOVOCAL_ALBUM.test(meta) && !NOVOCAL_ALBUM.test(song.title||"")) continue;
     const t = norm(r.trackName), tc = coreNorm(r.trackName) || t, a = norm(r.artistName);
     let tScore = 0, aScore = 0;
     if(t===wantT || tc===wantTC) tScore = 3;

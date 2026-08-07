@@ -82,6 +82,19 @@ const CASES = [
                   collectionName:'MONTERO (Call Me By Your Name) [but Lil Nas X is silent]', releaseDate:'2021-03-26', trackTimeMillis:137000}),
                R({trackId:20, trackName:'MONTERO (Call Me By Your Name)', artistName:'Lil Nas X',
                   collectionName:'MONTERO (Call Me By Your Name)', releaseDate:'2021-03-26', trackTimeMillis:137000}) ] },
+  // THE ONE THAT GOT THROUGH. The weekly harvest re-picked this after 4.43.0
+  // supposedly fixed it: the marker is not in collectionName at all, only in
+  // the album slug of trackViewUrl — and there it is hyphenated, so raw
+  // matching finds nothing either. Real ids, real URL, straight out of the
+  // previews.json the harvest committed.
+  { name: 'the meme edit is caught via the track URL when the album name hides it',
+    song: { title: 'Montero (Call Me by Your Name)', artist: 'Lil Nas X', year: 2021 },
+    results: [ R({trackId:1560908588, trackName:'MONTERO (Call Me By Your Name)', artistName:'Lil Nas X',
+                  collectionName:'MONTERO (Call Me By Your Name)', releaseDate:'2021-03-26', trackTimeMillis:137000,
+                  trackViewUrl:'https://music.apple.com/us/album/montero-call-me-by-your-name-but-lil-nas-x-is-silent/1560908103?i=1560908588&uo=4'}),
+               R({trackId:1560908602, trackName:'MONTERO (Call Me By Your Name)', artistName:'Lil Nas X',
+                  collectionName:'MONTERO (Call Me By Your Name)', releaseDate:'2021-03-26', trackTimeMillis:137000,
+                  trackViewUrl:'https://music.apple.com/us/album/montero-call-me-by-your-name/1560908103?i=1560908602&uo=4'}) ] },
   { name: 'a "No Vocals" album is rejected too',
     song: { title: 'Believe', artist: 'Cher', year: 1998 },
     results: [ R({trackId:21, trackName:'Believe', artistName:'Cher', collectionName:'Believe (No Vocals)', releaseDate:'1998-10-19', trackTimeMillis:239000}),
@@ -138,6 +151,7 @@ const CASES = [
     'a live cut still beats nothing at all':16,
     'wanted "Live" in the curated title is not penalised':17,
     'the "but X is silent" meme edit is rejected on the album name':20,
+    'the meme edit is caught via the track URL when the album name hides it':1560908602,
     'a "No Vocals" album is rejected too':22,
     'a real instrumental track on an "Instrumental" album still resolves':23,
     'a song whose real title trips BADVER still resolves':24,
