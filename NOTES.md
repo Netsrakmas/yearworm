@@ -109,6 +109,22 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Two long-intro epics swapped out on player evidence** (4.47.1 — Sam, mid-
+  challenge: "closer to the edge and pneuma i only hear an intro"). Close to
+  the Edge (18 min, vocal ~4:00) and Pneuma (12 min, vocal ~3:40): Apple's 30s
+  clip lands in the intro and there is nothing to recognise. Same class as
+  Rush 2112, which was skipped pre-emptively — these two are now skip entries
+  in the rebuild script with "player-verified" in the reason, and the chart
+  slid down: IN are Basket Case (#265) and Let It Be (#267), catalogue years.
+  NOT removed on speculation: the deck still holds Echoes, Fool's Overture,
+  Shine On, Child in Time (#2!), Count of Tuscany — all vocal-comes-late
+  epics, but Apple sometimes picks a mid-song segment, so unheard clips stay
+  until a player reports one. The 🔇 flag can retire a wrong RECORDING, but a
+  structurally unplayable SONG can only leave via the deck — that distinction
+  is why these went through the rebuild script, not dead_ids.
+  Also confirmed for Sam: Rammstein "Deutschland" really is 2019 (single
+  28 Mar 2019, their first new music in a decade — it feels older than it is).
+
 - **Challenge-deck picker on the Profile tab** (4.47.0 — Sam: "lets create a
   deck picker for outgoing challenges, i think its a fine place to pick on
   profile page"). New card "⚔️ Challenge songs": chips for the 7 standard decks,
