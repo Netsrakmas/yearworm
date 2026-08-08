@@ -109,6 +109,28 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Challenge-deck picker on the Profile tab** (4.47.0 — Sam: "lets create a
+  deck picker for outgoing challenges, i think its a fine place to pick on
+  profile page"). New card "⚔️ Challenge songs": chips for the 7 standard decks,
+  stored in `tl_chaldeck`, default Every Era (= exactly the old behaviour).
+  `startFreshChallenge` passes `chalDeckFilter()` into `seededIdx`, which
+  covers BOTH outgoing paths — friend duels go through it too
+  (`challengeFriend` → `startFreshChallenge`).
+  The part that makes this safe: seededIdx's filter narrows the candidate
+  slice but returns **full-pool indices**, so the `#c=` link format is
+  untouched and the recipient resolves the same 5 songs without ever knowing a
+  deck was involved. That is also why the picker offers standard decks ONLY: a
+  custom deck's songs aren't in the shared pool, and a link built from one
+  could carry songs the other phone cannot reconstruct.
+  Guards: an unknown/stale stored id falls back to Every Era (deck renamed →
+  widen, never crash); seededIdx's own thin-slice fallback (<60 candidates)
+  keeps a future tiny deck from starving a run. Tests in decks.js: chips match
+  DECKS, tap persists + re-renders with the ✓, three-seed draw stays inside
+  the chosen deck with valid pool indices, stale id widens — and a probe that
+  monkeypatches seededIdx to capture the live call, because a refactor that
+  drops the argument would pass every other check while challenges quietly
+  ignore the pref.
+
 - **Picker page one is hand-ordered** (4.46.1 — Sam: "keep the top10 hits,
   every era, then rock hits and party hits in this order"). The carousel spreads
   7 decks as 4+3, so the first four ids ARE page one: Top 10 · Every Era ·

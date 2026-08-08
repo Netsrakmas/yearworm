@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.46.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.47.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -8060,6 +8060,12 @@ function profileTabHTML(){
       <div class="muted" style="font-size:11.5px; min-width:0">Not getting them? Send one to this device.</div>
       <button id="pushTestBtn" class="btn sm ghost" style="flex:0 0 auto" onclick="testPush()">Send test</button>
     </div><div id="pushTestOut" class="muted" style="display:none; font-size:11.5px; margin-top:8px; line-height:1.45"></div>` : ``}</div>`; })()}
+    ${(()=>{ const cur = chalDeckId(); return `<div class="card" style="margin-top:12px">
+      <div style="font-weight:700; font-size:14px">${ico('swords',1)} Challenge songs</div>
+      <div class="muted" style="font-size:11.5px; margin-top:2px">The deck your outgoing challenges &amp; duels draw from — your friend plays the same 5 songs.</div>
+      <div class="row" style="gap:6px; flex-wrap:wrap; margin-top:10px" id="chalDeckRow">
+        ${DECKS.map(d=>`<button class="btn sm ${d.id===cur?'primary':''}" data-deck="${d.id}" onclick="setChalDeck('${d.id}')">${d.id===cur?'✓ ':''}${esc(d.name)}</button>`).join("")}
+      </div></div>`; })()}
     ${(()=>{ const on = sfxEnabled(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('vol',1)} Sound effects</div>
         <div class="muted" style="font-size:11.5px; margin-top:2px">${on ? 'On — little dings for placements & finishes' : 'Off — placements are silent'}</div></div>
@@ -8878,12 +8884,30 @@ function overlayTutOver(){
   showSheet();
   checkAchievements();
 }
+/* ---------- challenge deck: which songs your OUTGOING challenges draw ----------
+   Chosen on the Profile tab, stored locally. The filter narrows the candidate
+   slice inside seededIdx, but indices stay FULL-POOL indices — the recipient
+   resolves the link without ever knowing a deck was involved. Standard decks
+   only: a custom deck's songs aren't in the shared pool, so a link made from
+   one could carry indices the other phone can't resolve. */
+function chalDeckId(){
+  const id = store.get("tl_chaldeck") || "everything";
+  return DECKS.some(d => d.id === id) ? id : "everything";   // deck renamed/removed → widest
+}
+function setChalDeck(id){ store.set("tl_chaldeck", id); renderSetup(); }
+function chalDeckFilter(){
+  const id = chalDeckId();
+  if(id === "everything") return null;
+  const d = DECKS.find(x => x.id === id); if(!d) return null;
+  const keys = new Set(d.songs.map(s => norm(s.title) + "|" + norm(s.artist)));
+  return s => keys.has(norm(s.title) + "|" + norm(s.artist));
+}
 async function startFreshChallenge(){
   // same clustered picker as the daily, just with a random seed — WITH spare
   // candidates: if a preview lookup fails the run still fills its 5 songs.
   // The shared link is built from S.runCards (the songs actually played), so
   // it only ever contains resolvable tracks.
-  const idx = seededIdx(Math.floor(Math.random() * 2147483647), RUN_LEN + 5);
+  const idx = seededIdx(Math.floor(Math.random() * 2147483647), RUN_LEN + 5, chalDeckFilter());
   S.challenge = { idx, beat: null, beatTime: null };
   await startChallenge();
   S.challenge = null;   // self-made: no incoming-challenge card back on setup

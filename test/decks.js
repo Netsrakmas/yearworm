@@ -107,6 +107,54 @@ const server = http.createServer((req, res) => {
   if(!picked.includes('classicrock')) throw new Error('tapping the deck did not select it: ' + picked.join(','));
   console.log('decks: Classic Rock 200 is offered in the lobby and selectable OK');
 
+  // ---- challenge deck picker (Profile) ----
+  // The pref narrows which songs an OUTGOING challenge draws, but the link a
+  // recipient gets must stay full-pool indices — they resolve it without ever
+  // knowing a deck was involved.
+  await pg.evaluate(() => { closeOverlay(); goTab('profile'); });
+  await pg.waitForTimeout(400);
+  const chips = await pg.$$eval('#chalDeckRow [data-deck]', els => els.map(e => e.dataset.deck));
+  if(chips.join() !== d.ids.join()) throw new Error('challenge-deck chips do not match the decks: ' + chips.join(','));
+  const before = await pg.evaluate(() => chalDeckId());
+  if(before !== 'everything') throw new Error('default challenge deck should be everything, got ' + before);
+  await pg.click('#chalDeckRow [data-deck="classicrock"]');
+  await pg.waitForTimeout(300);
+  const after = await pg.evaluate(() => ({ id: chalDeckId(), stored: store.get('tl_chaldeck'),
+    marked: document.querySelector('#chalDeckRow [data-deck="classicrock"]').textContent }));
+  if(after.id !== 'classicrock' || after.stored !== 'classicrock') throw new Error('tap did not persist: ' + JSON.stringify(after));
+  if(!/✓/.test(after.marked)) throw new Error('chosen deck not marked after re-render');
+  const draw = await pg.evaluate(() => {
+    const pool = stablePool();
+    const deck = new Set(DECKS.find(x => x.id === 'classicrock').songs.map(s => norm(s.title) + '|' + norm(s.artist)));
+    // three different seeds — one lucky draw proves nothing
+    const bad = [];
+    for(const seed of [7, 12345, 987654321]){
+      for(const i of seededIdx(seed, 10, chalDeckFilter())){
+        const s = pool[i];
+        if(!deck.has(norm(s.title) + '|' + norm(s.artist))) bad.push(s.artist + ' - ' + s.title);
+        if(i < 0 || i >= pool.length) bad.push('out-of-pool index ' + i);
+      }
+    }
+    return bad.slice(0, 5);
+  });
+  if(draw.length) throw new Error('filtered draw left the chosen deck: ' + JSON.stringify(draw));
+  // a stale/unknown stored id must widen to everything, never crash or narrow wrongly
+  const stale = await pg.evaluate(() => { store.set('tl_chaldeck', 'deck-that-was-removed'); return chalDeckId(); });
+  if(stale !== 'everything') throw new Error('unknown stored deck id should fall back to everything: ' + stale);
+  // and the outgoing path is actually WIRED to the filter — capture the call
+  // rather than trust the source: a refactor that drops the argument would
+  // pass every check above while challenges quietly ignore the pref again
+  const wired = await pg.evaluate(async () => {
+    store.set('tl_chaldeck', 'classicrock');
+    const real = seededIdx; let got = 'never-called';
+    window.seededIdx = (seed, n, filter) => { got = typeof filter; throw new Error('probe-stop'); };
+    try{ await startFreshChallenge(); }catch(e){ /* the probe aborts the run on purpose */ }
+    window.seededIdx = real;
+    return got;
+  });
+  if(wired !== 'function') throw new Error('startFreshChallenge does not pass the deck filter (got ' + wired + ')');
+  console.log('decks: challenge-deck picker persists, filters the draw, wired into the run, falls back safely OK');
+
   await browser.close(); server.close();
   console.log('DECKS TEST PASS ✓');
 })().catch(e => { console.error('DECKS FAIL ✗', e.message); process.exit(1); });
