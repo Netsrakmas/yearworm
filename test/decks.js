@@ -42,6 +42,10 @@ const server = http.createServer((req, res) => {
   if(d.selected.join() !== 'top10') throw new Error('boot selection changed: ' + d.selected.join());
   if(!d.ids.includes('classicrock')) throw new Error('classicrock deck was spliced away — it is not pickable: ' + d.ids.join(','));
   if(d.sizes.classicrock !== 200) throw new Error('classicrock should hold 200 songs, has ' + d.sizes.classicrock);
+  // the carousel spreads 7 decks as 4+3, so the first FOUR ids are page one —
+  // Sam picked this page: Top 10 · Every Era · Classic Rock · Party
+  if(d.ids.slice(0, 4).join() !== 'top10,everything,classicrock,party')
+    throw new Error('picker page one is not the chosen four: ' + d.ids.slice(0, 4).join(','));
   console.log('decks: classicrock survives the splice, 200 songs, Top 10 still the default OK ·', d.ids.join(','));
 
   // its songs must ALSO reach the shared pool, or the daily can never draw them

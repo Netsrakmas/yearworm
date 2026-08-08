@@ -109,6 +109,15 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Picker page one is hand-ordered** (4.46.1 — Sam: "keep the top10 hits,
+  every era, then rock hits and party hits in this order"). The carousel spreads
+  7 decks as 4+3, so the first four ids ARE page one: Top 10 · Every Era ·
+  Classic Rock 200 · Party Anthems; classics/thehits/now move to page two. Done
+  with an explicit ORDER list sorted after the splice+push — unknown ids sink to
+  the end rather than vanish, so the NEXT new deck appears on page two instead
+  of silently disappearing. top10 stays index 0 (boot default). decks.js pins
+  the first four.
+
 - **Classic Rock 200 is now the REAL Arrow list** (4.46.0 — Sam supplied the
   official Arrow Classic Rock 500 **2025** PDF after every chart site turned out
   egress-blocked). The PDF is 11 pages of scans with no text layer: extracted

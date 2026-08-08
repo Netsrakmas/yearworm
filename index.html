@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.46.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.46.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5355,9 +5355,17 @@ const TOP10_SONGS = [
   DECKS.splice(6);   // launch: show only these five decks; the themed songs remain in the pool above
   // …plus one genuinely curated deck. Every other themed deck is spliced away
   // and survives only as pool food, so a new one has to be put back by hand or
-  // it silently becomes invisible. It goes LAST: DECKS[0] is the default
-  // selection at boot, and that has to stay Top 10 Hits.
+  // it silently becomes invisible.
   if(classicRock) DECKS.push(classicRock);
+  // Picker order (Sam's): PAGE ONE is Top 10 · Every Era · Classic Rock ·
+  // Party — the carousel spreads 7 decks as 4+3, so the first four ids here
+  // are the first page. top10 must stay index 0: it is the boot default
+  // (S.selectedIds = [DECKS[0].id]) and the decks test pins that.
+  const ORDER = ["top10","everything","classicrock","party","classics","thehits","now"];
+  DECKS.sort((a,b) => {
+    const x = ORDER.indexOf(a.id), y = ORDER.indexOf(b.id);
+    return (x < 0 ? ORDER.length : x) - (y < 0 ? ORDER.length : y);   // unknown ids sink, never vanish
+  });
 })();
 
 /* ---------- app state ---------- */
