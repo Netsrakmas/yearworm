@@ -541,7 +541,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.47.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.48.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -8998,6 +8998,19 @@ async function onStart(){
             : turboRun ? Math.min(songs.length, 30 + (S.players.length||1)*15)
             : Math.max(120, Math.min(400, need * 4));
   songs = freshFirst(shuffle(songs.slice()));   // fair shuffle, then recently-heard songs to the back
+  // TURBO clusters around a random era center, like the daily and fresh
+  // challenges already do — tight year gaps are the difficulty, and a turbo
+  // result can be PASSED ON as a challenge, which inherits the run's actual
+  // cards. Without this, a Classic Rock turbo spanned 1964-2019 and so did
+  // the challenge it spawned. A stable sort on closeness keeps the shuffle's
+  // randomness within equal distances, and resolution failures degrade
+  // GRACEFULLY: the next-closest year steps in, the window just widens a
+  // little. Works for custom decks too — no pool membership needed. Survival
+  // stays unclustered on purpose: an endless run wants the whole timeline.
+  if(turboRun && songs.length > 2){
+    const center = songs[Math.floor(Math.random() * songs.length)].year;
+    songs.sort((a2,b2) => Math.abs(a2.year - center) - Math.abs(b2.year - center));
+  }
   if(songs.length > cap){ songs = songs.slice(0, cap); }
   unlockAudio();   // prime mobile audio within this tap
   // Resolve only what's needed to start — one seed card per player + the first

@@ -155,6 +155,33 @@ const server = http.createServer((req, res) => {
   if(wired !== 'function') throw new Error('startFreshChallenge does not pass the deck filter (got ' + wired + ')');
   console.log('decks: challenge-deck picker persists, filters the draw, wired into the run, falls back safely OK');
 
+  // ---- turbo runs cluster by era ----
+  // A turbo result can be passed on as a challenge, inheriting the run's
+  // actual cards — so an unclustered turbo leaked 1964-2019 sets into
+  // challenges. The working set now sorts by closeness to a random center:
+  // with lookups stubbed instant, the resolved deck is the ~dozen closest
+  // years, so its spread must be far below the deck's full 55-year span.
+  await pg.route(/itunes\.apple\.com/, route => {
+    const u = new URL(route.request().url()); const cb = u.searchParams.get('callback'); const term = u.searchParams.get('term') || 'x';
+    route.fulfill({ contentType: 'text/javascript',
+      body: cb + '(' + JSON.stringify({ resultCount: 1, results: [{ trackId: Math.floor(Math.random()*1e9), trackName: term,
+        artistName: term, collectionName: 'T', releaseDate: '1990-01-01', previewUrl: 'data:audio/wav;base64,' }] }) + ')' });
+  });
+  for(let round = 0; round < 2; round++){
+    await pg.evaluate(() => { store.set('tl_chaldeck', 'everything'); S.selectedIds = ['classicrock']; goTab('play'); openMode('turbo'); });
+    await pg.waitForTimeout(300);
+    await pg.evaluate(() => onStart());
+    await pg.waitForFunction(() => S.deck.length >= 8, { timeout: 20000 });
+    const spread = await pg.evaluate(() => {
+      const ys = S.deck.map(c => c.year);
+      return { n: ys.length, span: Math.max(...ys) - Math.min(...ys) };
+    });
+    if(spread.span > 34) throw new Error('turbo deck not era-clustered: ' + JSON.stringify(spread) + ' (full deck spans ~55y)');
+    await pg.evaluate(() => { bgRun++; S.mode = null; backToSetup(); });
+    await pg.waitForTimeout(200);
+  }
+  console.log('decks: turbo working set clusters around an era center OK');
+
   await browser.close(); server.close();
   console.log('DECKS TEST PASS ✓');
 })().catch(e => { console.error('DECKS FAIL ✗', e.message); process.exit(1); });

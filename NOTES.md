@@ -109,6 +109,29 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Turbo clusters by era now — and that closes the challenge-spread hole**
+  (4.48.0 — Sam: "not all challenges seem to be within a certain period.
+  sometimes its all over the timeline"). His screenshots showed 1972, 1991 and
+  2019 in one friend-challenge set. First step was proving the seeded flow
+  could NOT have made that: no center window under the ±8-widening rule
+  contains those three years, on the real deck's year distribution. So the set
+  was born elsewhere — a challenge has THREE birthplaces, and only one
+  clustered: the Challenges card seeds a window ✓, the daily is seeded ✓, but
+  a TURBO (or survival) result passed on via "Challenge friends" carries the
+  run's actual cards, and turbo drew a pure shuffle of the selected decks.
+  A Classic Rock turbo spanned 1964-2019, and so did the challenge it spawned.
+  Fix at the source, deliberately NOT via seededIdx: turbo's working set now
+  stable-sorts by |year − random center| after the shuffle. Ties keep the
+  shuffle's randomness; resolution failures degrade gracefully (the
+  next-closest year steps in, the window just widens a little); custom decks
+  work too since no pool membership is needed; and the daily/challenge paths
+  are untouched byte-for-byte. Survival stays unclustered ON PURPOSE — an
+  endless run wants the whole timeline — which means a survival-born pass-on
+  still carries spread; documented trade-off, revisit if players hit it.
+  Test: decks.js starts two real turbo runs over classicrock with instant
+  stubbed lookups and asserts the resolved deck spans ≤34 years (the full
+  deck spans ~55; a random dozen typically ~45+).
+
 - **Two long-intro epics swapped out on player evidence** (4.47.1 — Sam, mid-
   challenge: "closer to the edge and pneuma i only hear an intro"). Close to
   the Edge (18 min, vocal ~4:00) and Pneuma (12 min, vocal ~3:40): Apple's 30s
