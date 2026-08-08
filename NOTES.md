@@ -109,6 +109,43 @@ preview clips** instead of Spotify.
   Test-harness note: in Playwright the LAST matching route wins, so registering
   `/beacon$/ ` before the broad `lb.test` route meant every beacon was swallowed
   by it and only the pre-`LB.url` one was ever seen.
+- **Classic Rock 200 is now the REAL Arrow list** (4.46.0 — Sam supplied the
+  official Arrow Classic Rock 500 **2025** PDF after every chart site turned out
+  egress-blocked). The PDF is 11 pages of scans with no text layer: extracted
+  via poppler + tesseract TSV with column-aware parsing (466/500), the photo-
+  layout top-100 pages transcribed by eye (34), OCR damage repaired against the
+  page images by hand ("PEARLJAM", "ac/pc", "2Z TOP", "CC" = 10cc — and one
+  error of MINE: I clobbered #33 with a dupe of #3; it is Genesis, Firth of
+  Fifth). Verdict on the old guessed deck: **102/200 was on the real list.**
+  Rebuild rules, in order: (1) every entry keeps the catalogue's existing year
+  if the song is anywhere in the app — one song, one year, enforced by
+  decks.js; (2) newcomers get a hand-stated year under the single-year
+  convention (~100 of them); (3) chart order fills the 200, deepest position
+  used 260; (4) per-artist cap 6 — the chart's top is dominated by Pink
+  Floyd/Zeppelin/Purple/Metallica/AC/DC/Maiden at 6 each, and their 7th+ deep
+  cuts give way to the next act down the list.
+  Deliberate exclusions, each logged in the rebuild script: **live-marked
+  entries** are mapped to their studio recording when that is the iconic one
+  (Fear of the Dark, Gimme Shelter, A Forest, Sound of Silence, Private
+  Investigations, When a Blind Man Cries → dropped by cap, Still Loving You,
+  Tears in Heaven) and skipped when the live cut IS the entry (4500 Times, Roll
+  Over Lay Down, I'm Going Home, Heart's Stairway). **Jessica** is instrumental
+  by design — the game needs a voice. **Rush 2112** and **Brain Damage -
+  Eclipse** are unresolvable title shapes against Apple. Two entries skipped as
+  year-not-confident rather than guessed (Cuby "Somebody Will Know Someday",
+  Arena "The Hanging Tree").
+  Preview coverage drops to 63/200 — ~137 newcomers resolve via the worker at
+  play time until Sunday's harvest picks them up automatically (it reads
+  allDecks() from index.html, so no extra work).
+  The Dutch quota is gone: the chart carries its own Dutch (Golden Earring ×5,
+  Anouk, Within Temptation, Kayak, Vandenberg, Focus, Cuby, Earth & Fire,
+  Brainbox). Normaal, Herman Brood, Shocking Blue and Kane fell out — they are
+  not on the 500's playable top; they remain in the shared pool via nothing now
+  (they were only in this deck), which is the one real loss of chart
+  fidelity. Scan artefacts to remember: OCR of a two-column table needs the
+  TSV + largest-x-gap split, and the header "27 - 31 oktober 2025" parses as
+  position 27 on every page — filter it or it shadows the real #27.
+
 - **The 4.43.0 meme-edit fix did not actually work, and the harvest proved it**
   (4.45.1). The weekly job re-resolved Montero and picked the *same* silent
   upload. The run log gives it away: successes print nothing, and the output
