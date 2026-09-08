@@ -16,6 +16,18 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.48.1 — preserve Daily rank achievements
+- Daily saves now retain the lowest valid lifetime bestRank while replacing
+  run-specific fields normally (including clearing the partial-attempt flag).
+- World Beater can recover an already-lost #1 from a surviving local
+  tl_achseen unlock record. No rank is invented when that evidence is absent;
+  this does not restore achievements after browser data has been cleared.
+- Rank responses check achievements immediately; unlock history is retained
+  rather than replaced when another achievement is awarded.
+- Regression: node test/daily-rank.js (no dependencies). Covers rollover,
+  worse/better ranks, partial completion, reload, stale snapshots, recovery,
+  malformed storage, unlock history, script syntax and release-version parity.
+
 ## What it is
 - Single-file web app: `index.html` (HTML + inline CSS + inline JS).
 - PWA: `manifest.json` + `sw.js` (service worker, network-first). Icons:
