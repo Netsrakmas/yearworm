@@ -23,6 +23,8 @@ function game(entries = {}, shared) {
   const context = vm.createContext({
     store: { get: k => data.get(k) ?? null, set: (k, v) => data.set(k, v) },
     loadBest: () => ({}), loadLife: () => ({}), _social: { friends: [] },
+    S: { customDecks: [] }, loadProfile: () => null,
+    pushSupported: () => false, pushEnabled: () => false,
     RUN_LEN: 5, ACH_SEEN: 'tl_achseen', _achT: [],
     setTimeout: () => 1, achPop: () => {},
   });
