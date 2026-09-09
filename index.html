@@ -93,6 +93,11 @@
   }
   input[type=text]:focus, input[type=number]:focus, input:not([type]):focus{border-color:var(--gold);}
   input::placeholder{color:var(--faint);}
+  .deck-preference{width:100%; min-height:44px; padding:10px 12px; font:inherit; font-size:16px;
+    color:var(--text); background:var(--bg); border:1px solid var(--muted); border-radius:var(--r-ctl);}
+  .deck-preference:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .regional-decks{margin-top:12px;}
+  .regional-decks summary{cursor:pointer; color:var(--muted); font-size:14px; padding:10px 0;}
   .row{display:flex; gap:10px; align-items:center;}
   .row.wrap{flex-wrap:wrap;}
   button{font:inherit; cursor:pointer; border:none; border-radius:var(--r-ctl); font-weight:700; letter-spacing:.01em;}
@@ -541,7 +546,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.48.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.49.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5339,13 +5344,11 @@ const TOP10_SONGS = [
   for(const s of TOP10_SONGS) add(s);
   const pKeys = new Set(PARTY_SONGS.map(key));
   const bucket = (lo,hi) => pool.filter(s => s.year>=lo && s.year<=hi).slice(0,600);
-  // Top 10 Hits leads → it is DECKS[0] and therefore the DEFAULT selection
-  // (boot: S.selectedIds = [DECKS[0].id]). Recognizable per-year chart hits make
-  // the best first impression; Every Era stays one tap away. NB: the daily and
-  // challenge sets are seeded from stablePool() ("everything") by id, so this
-  // ordering never affects them.
+  // Keep the complete catalogue independent of regional visibility. Daily and
+  // challenge indices come from Every Era; hiding a picker entry must never
+  // remove songs or change a shared puzzle. Boot chooses its default by preference.
   DECKS.unshift(
-    { id:"top10", name:"Top 10 Hits", emoji:"\u{1F3C6}", desc:"NL chart toppers, every year", songs:TOP10_SONGS },
+    { id:"top10", name:"Dutch Top 10 Hits", emoji:"\u{1F3C6}", desc:"Dutch chart toppers, every year", songs:TOP10_SONGS },
     { id:"everything", name:"Every Era", emoji:"\u{1F30D}", desc:"1955–now", songs:pool },
     { id:"classics", name:"The Classics", emoji:"\u{1F3DB}\uFE0F", desc:"1950s\u20131989", songs:bucket(0,1989) },
     { id:"thehits", name:"The Hits", emoji:"\u2728", desc:"1990\u20132009", songs:bucket(1990,2009) },
@@ -5359,8 +5362,8 @@ const TOP10_SONGS = [
   if(classicRock) DECKS.push(classicRock);
   // Picker order (Sam's): PAGE ONE is Top 10 · Every Era · Classic Rock ·
   // Party — the carousel spreads 7 decks as 4+3, so the first four ids here
-  // are the first page. top10 must stay index 0: it is the boot default
-  // (S.selectedIds = [DECKS[0].id]) and the decks test pins that.
+  // are the first page when the Dutch deck is visible. Other players see the
+  // six international decks; the full catalogue order stays stable.
   const ORDER = ["top10","everything","classicrock","party","classics","thehits","now"];
   DECKS.sort((a,b) => {
     const x = ORDER.indexOf(a.id), y = ORDER.indexOf(b.id);
@@ -5693,6 +5696,7 @@ let _invitePrompted = false;  // opened the claim-name popup for an incoming inv
 function goTab(t){ _tab = t; _playScreen = null; renderSetup(); try{ window.scrollTo(0,0); }catch(e){} }
 function openMode(m){
   _playScreen = m;
+  reconcileDeckSelection();   // a previously resumed Dutch run may now be hidden
   if(m === "survival"){ S.mode = "survival"; S.turbo = false; }
   else { S.mode = "classic"; S.turbo = (m === "turbo"); }
   renderSetup(); try{ window.scrollTo(0,0); }catch(e){}
@@ -6859,6 +6863,48 @@ function pickBest(results, song){
   return best;
 }
 
+/* ---------- regional deck preference ---------- */
+// Keep a session copy too: the control still works if browser storage is blocked.
+let _dutchDeckPreference = store.get("tl_dutchdeck") || "auto";
+function dutchDeckPreference(){
+  return ["show", "hide"].includes(_dutchDeckPreference) ? _dutchDeckPreference : "auto";
+}
+function dutchDeckVisible(){
+  const pref = dutchDeckPreference();
+  if(pref !== "auto") return pref === "show";
+  const languages = typeof navigator === "undefined" ? []
+    : (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language]);
+  return Array.from(languages).some(lang => typeof lang === "string" && /^nl(?:-|$)/i.test(lang));
+}
+function visibleDecks(){ return DECKS.filter(d => d.id !== "top10" || dutchDeckVisible()); }
+function defaultDeckId(){ return dutchDeckVisible() ? "top10" : "everything"; }
+function reconcileDeckSelection(){
+  if(!dutchDeckVisible()) S.selectedIds = S.selectedIds.filter(id => id !== "top10");
+  if(!S.selectedIds.length) S.selectedIds = [defaultDeckId()];
+}
+function setDutchDeckPreference(value){
+  if(!["auto", "show", "hide"].includes(value)) return;
+  const wasDefault = S.selectedIds.length === 1 && S.selectedIds[0] === defaultDeckId();
+  _dutchDeckPreference = value;
+  if(value === "auto") store.del("tl_dutchdeck"); else store.set("tl_dutchdeck", value);
+  if(wasDefault) S.selectedIds = [defaultDeckId()];
+  reconcileDeckSelection();
+  renderSetup();
+  const control = document.getElementById("dutchDeckPreference");
+  if(control){
+    const details = control.closest("details"); if(details) details.open = true;
+    control.focus({preventScroll:true});
+  }
+}
+function regionalDeckPreferenceHTML(){
+  const pref = dutchDeckPreference();
+  return `<label class="fld" for="dutchDeckPreference">Dutch Top 10 Hits</label>
+    <select class="deck-preference" id="dutchDeckPreference" aria-describedby="dutchDeckHint" onchange="setDutchDeckPreference(this.value)">
+      ${[["auto","Automatic"],["show","Show"],["hide","Hide"]].map(([value,label])=>`<option value="${value}"${pref===value?' selected':''}>${label}</option>`).join("")}
+    </select>
+    <div class="hint" id="dutchDeckHint">Automatic shows this deck when Dutch is one of your browser languages. Your choice is saved on this device.</div>`;
+}
+
 /* ---------- deck resolution ---------- */
 function allDecks(){ return DECKS.concat(S.customDecks); }
 function isSelected(id){ return S.selectedIds.indexOf(id) >= 0; }
@@ -7625,13 +7671,13 @@ function tallyHTML(){
 function updateTally(){ const el=document.getElementById("deckTally"); if(el) el.innerHTML = tallyHTML(); }
 // page the decks into side-scrollable groups of 6 (2 cols × 3 rows)
 function deckCarouselHTML(){
-  const MAX = 6, pages = [];
+  const decks = visibleDecks(), MAX = 6, pages = [];
   // Spread the decks EVENLY over as few pages as fit, rather than filling each
   // page to six and leaving the remainder alone on the last one. Every page is
   // as tall as the fullest, so a 7th deck used to sit by itself under two empty
   // rows of nothing. 7 decks now page as 4+3, not 6+1.
-  const PAGE = Math.ceil(DECKS.length / Math.max(1, Math.ceil(DECKS.length / MAX)));
-  for(let i=0;i<DECKS.length;i+=PAGE) pages.push(DECKS.slice(i, i+PAGE));
+  const PAGE = Math.ceil(decks.length / Math.max(1, Math.ceil(decks.length / MAX)));
+  for(let i=0;i<decks.length;i+=PAGE) pages.push(decks.slice(i, i+PAGE));
   const cards = pages.map(pg => `<div class="deck-page">${pg.map(d=>deckChipHTML(d)).join("")}</div>`).join("");
   const dots = pages.length>1
     ? `<div class="car-dots" id="carDots">${pages.map((_,i)=>`<span class="car-dot ${i===0?'on':''}"></span>`).join("")}</div>` : ``;
@@ -7768,6 +7814,7 @@ function configScreenHTML(mode){
   const startLabel = survival ? "🎯 Start survival" : turbo ? "⚡ Start turbo" : "▶ Start game";
   const music = `<div class="eyebrow" style="margin-top:4px">music</div><div style="height:10px"></div>
       ${deckCarouselHTML()}
+      <details class="regional-decks"><summary>Regional decks</summary>${regionalDeckPreferenceHTML()}</details>
       ${custom ? `<div style="height:8px"></div><label class="fld">Your decks</label><div class="deck-list">${custom}</div>` : ``}
       <div class="row" style="justify-content:space-between; align-items:center; margin-top:10px">
         <button class="btn ghost sm" onclick="newDeck()">+ Build your own deck</button>
@@ -8085,11 +8132,13 @@ function profileTabHTML(){
       <div class="muted" style="font-size:11.5px; min-width:0">Not getting them? Send one to this device.</div>
       <button id="pushTestBtn" class="btn sm ghost" style="flex:0 0 auto" onclick="testPush()">Send test</button>
     </div><div id="pushTestOut" class="muted" style="display:none; font-size:11.5px; margin-top:8px; line-height:1.45"></div>` : ``}</div>`; })()}
+    <div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">Regional decks</div>
+      <div style="height:10px"></div>${regionalDeckPreferenceHTML()}</div>
     ${(()=>{ const cur = chalDeckId(); return `<div class="card" style="margin-top:12px">
       <div style="font-weight:700; font-size:14px">${ico('swords',1)} Challenge songs</div>
       <div class="muted" style="font-size:11.5px; margin-top:2px">The deck your outgoing challenges &amp; duels draw from — your friend plays the same 5 songs.</div>
       <div class="row" style="gap:6px; flex-wrap:wrap; margin-top:10px" id="chalDeckRow">
-        ${DECKS.map(d=>`<button class="btn sm ${d.id===cur?'primary':''}" data-deck="${d.id}" onclick="setChalDeck('${d.id}')">${d.id===cur?'✓ ':''}${esc(d.name)}</button>`).join("")}
+        ${visibleDecks().map(d=>`<button class="btn sm ${d.id===cur?'primary':''}" data-deck="${d.id}" onclick="setChalDeck('${d.id}')">${d.id===cur?'✓ ':''}${esc(d.name)}</button>`).join("")}
       </div></div>`; })()}
     ${(()=>{ const on = sfxEnabled(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('vol',1)} Sound effects</div>
@@ -8924,7 +8973,7 @@ function overlayTutOver(){
    one could carry indices the other phone can't resolve. */
 function chalDeckId(){
   const id = store.get("tl_chaldeck") || "everything";
-  return DECKS.some(d => d.id === id) ? id : "everything";   // deck renamed/removed → widest
+  return visibleDecks().some(d => d.id === id) ? id : "everything";   // hidden or removed → widest
 }
 function setChalDeck(id){ store.set("tl_chaldeck", id); renderSetup(); }
 function chalDeckFilter(){
@@ -9255,7 +9304,7 @@ function boot(){
   if(S.challenge) track("open-challenge-link");   // a shared link actually landed
   try{ S.yearOverrides = JSON.parse(store.get("tl_years")||"{}"); }catch(e){ S.yearOverrides = {}; }
   try{ S.customDecks = JSON.parse(store.get("tl_decks")||"[]")||[]; }catch(e){ S.customDecks = []; }
-  S.selectedIds = DECKS[0] ? [DECKS[0].id] : [];
+  S.selectedIds = [defaultDeckId()];
   renderSetup();
   if(S.challenge && !chalPlayed(S.challenge.idx)) overlayChallengeInvite();
   beacon("land");

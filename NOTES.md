@@ -16,6 +16,19 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.49.0 — regional deck preferences
+- Dutch Top 10 Hits is shown and selected by default when any preferred browser
+  language is Dutch (`nl`, `nl-NL`, `nl-BE`, including a secondary language).
+  Other browsers start with Every Era and six visible international decks.
+- Regional decks in the mode setup and Profile offers Automatic / Show / Hide,
+  remembered on this device. An explicit choice overrides language detection.
+  The outgoing challenge picker follows the same visibility preference.
+- The complete catalogue, Every Era, Daily draws and shared challenge indices
+  are unchanged. A saved Dutch-deck game still resumes with its original songs.
+- Sam confirmed the game worked on iPhone on 2026-09-09.
+- Regression: `node test/deck-region.js` covers language fallback, preferences,
+  reload, picker output, outgoing challenges, and unchanged shared song data.
+
 ## 4.48.1 — preserve Daily rank achievements
 - Daily saves now retain the lowest valid lifetime bestRank while replacing
   run-specific fields normally (including clearing the partial-attempt flag).
@@ -1737,7 +1750,7 @@ songs the 600-capped era decks drop) — not obsolete.
 
 ## TODO / open items
 - [x] ~~**Real-device test**~~ — **done** (phone test passed: install + previews
-      play). iOS/Safari still untested but no longer launch-blocking.
+      play). Sam also confirmed successful iPhone play on 2026-09-09.
 - [x] ~~**Year-accuracy pass**~~ — **done**: 78 conflicts resolved + full 2187-song
       sweep (75 corrections). Follow-up done too: normalized 28 artist-spelling
       variants (62 literals), which collapsed 18 hidden duplicate songs

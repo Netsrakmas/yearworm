@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
 (async () => {
   await new Promise(r => server.listen(8131, r));
   const browser = await chromium.launch({ executablePath: CHROME });
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, serviceWorkers: 'block', locale: 'nl-NL' });
   const pg = await ctx.newPage();
   pg.on('pageerror', e => { throw new Error('PAGEERROR: ' + e.message); });
   await pg.route(/itunes\.apple\.com/, r => r.abort());
@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
       return { golden: set.has('golden earring|radar love'), focus: set.has('focus|hocus pocus') }; })(),
   }));
 
-  if(d.first !== 'top10') throw new Error('DECKS[0] must stay Top 10 Hits (it is the boot default), got ' + d.first);
+  if(d.first !== 'top10') throw new Error('Dutch Top 10 should lead the complete catalogue, got ' + d.first);
   if(d.selected.join() !== 'top10') throw new Error('boot selection changed: ' + d.selected.join());
   if(!d.ids.includes('classicrock')) throw new Error('classicrock deck was spliced away — it is not pickable: ' + d.ids.join(','));
   if(d.sizes.classicrock !== 200) throw new Error('classicrock should hold 200 songs, has ' + d.sizes.classicrock);
