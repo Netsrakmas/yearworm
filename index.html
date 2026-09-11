@@ -28,7 +28,7 @@
 <meta name="twitter:image" content="https://playyearworm.com/og-image.png?v=2" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Rubik:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Rubik:wght@900&display=swap" rel="stylesheet" />
 <!-- anonymous, cookieless visit stats (goatcounter.com) — no personal data, see privacy.html -->
 <script data-goatcounter="https://yearworm.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <style>
@@ -42,7 +42,8 @@
     --good:#4ADE80; --bad:#FF6B6B; --orange:#FF9F45;
     --glow-gold:rgba(246,185,59,.16);
     --glow-cyan:rgba(94,224,214,.10);
-    --mono:"DM Mono",ui-monospace,monospace;
+    --ui:"DM Sans",system-ui,sans-serif;
+    --mono:var(--ui);
     --r:14px; --r-ctl:12px; --r-card:18px; --r-hero:18px; --r-sheet:22px;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -55,7 +56,7 @@
     margin:0; min-height:100%;
     background:#05070F;
     color:var(--text);
-    font-family:"Rubik",system-ui,sans-serif;
+    font-family:var(--ui); font-size:16px; line-height:1.45; font-variant-numeric:tabular-nums;
     -webkit-font-smoothing:antialiased;
     overflow-x:hidden;
   }
@@ -65,9 +66,9 @@
   }
   #app{max-width:440px; margin:0 auto; min-height:100%;
     padding:max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));}
-  .display{font-family:"Anton",sans-serif; font-weight:400; letter-spacing:.5px; line-height:.95;}
+  .display{font-family:var(--ui); font-weight:700; letter-spacing:-.025em; line-height:1.1;}
   /* eyebrows are quiet by default — color is earned (daily=gold, online=cyan) */
-  .eyebrow{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700;}
+  .eyebrow{font-size:14px; color:var(--muted); font-weight:600;}
   .muted{color:var(--muted);}
   h1.brand{font-family:"Rubik",sans-serif; font-weight:900; font-size:clamp(32px,10vw,40px); margin:0; letter-spacing:-1px; line-height:.95;
     background:linear-gradient(100deg, var(--gold), var(--cyan));
@@ -86,10 +87,10 @@
   #chalNews .card{margin-bottom:16px;}
   #friendsCard .card{margin-top:16px;}   /* same wrapper-div blind spot */
   #friendsCard + .card{margin-top:16px;} /* …and the card FOLLOWING the wrapper (resume card) */
-  label.fld{display:block; font-size:13px; color:var(--muted); margin:0 0 7px; letter-spacing:.02em;}
+  label.fld{display:block; font-size:14px; color:var(--muted); margin:0 0 7px; letter-spacing:.02em;}
   input[type=text], input[type=number], input:not([type]){
     width:100%; background:var(--bg); border:1px solid transparent; color:var(--text);
-    border-radius:var(--r-ctl); padding:13px 14px; font:inherit; font-size:15px; outline:none;
+    border-radius:var(--r-ctl); padding:13px 14px; font:inherit; font-size:16px; outline:none;
   }
   input[type=text]:focus, input[type=number]:focus, input:not([type]):focus{border-color:var(--gold);}
   input::placeholder{color:var(--faint);}
@@ -114,10 +115,10 @@
   .btn.ghost{background:transparent; color:var(--muted); border-bottom-color:transparent;}
   .btn.ghost:active{transform:none; border-bottom-width:4px;}
   .btn:hover{filter:brightness(1.06);}
-  .btn.sm{padding:10px 12px; font-size:13px; width:auto; min-height:40px;}
+  .btn.sm{padding:10px 12px; font-size:14px; width:auto; min-height:40px;}
   .btn:disabled{opacity:.45; cursor:not-allowed;}
   .btn:focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
-  .hint{font-size:13.5px; color:var(--muted); margin-top:9px; line-height:1.55;}
+  .hint{font-size:14px; color:var(--muted); margin-top:9px; line-height:1.55;}
   .pill{display:inline-flex; align-items:center; gap:7px; font-size:12px; padding:6px 11px; border-radius:99px;
     border:1px solid var(--line); background:var(--surface);}
   .dot{width:8px; height:8px; border-radius:99px; background:var(--muted);}
@@ -140,7 +141,7 @@
   /* concept-C chrome: identity avatars, the daily #N block, playlist deck
      tiles, and the bottom tab bar (setup screen only — it lives inside #app) */
   .avatar{display:inline-grid; place-items:center; width:38px; height:38px; border-radius:50%; overflow:hidden;
-    background:var(--s2); border:2px solid var(--line); font-size:17px; flex:0 0 auto; font-weight:800;}
+    background:var(--s2); border:2px solid var(--line); font-size:17px; flex:0 0 auto; font-weight:700;}
   .avatar.me{border-color:var(--gold); color:var(--gold);}
   .avatar.sm{width:27px; height:27px; font-size:15px; border-width:1px;}
   /* Leaderboard rows end in two FIXED columns — score, then action. The action
@@ -152,9 +153,9 @@
      rather than compressing the sentence into a five-line column beside them */
   .inboxrow{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
     gap:8px; margin-top:9px;}
-  .inboxrow > .txt{flex:1 1 190px; min-width:0; font-size:13.5px;}
+  .inboxrow > .txt{flex:1 1 190px; min-width:0; font-size:14px;}
   .inboxrow > .acts{flex:0 0 auto; display:inline-flex; gap:6px; margin-left:auto;}
-  .bscore{flex:0 0 auto; min-width:34px; text-align:right; font-family:var(--mono); font-size:13px;}
+  .bscore{flex:0 0 auto; min-width:34px; text-align:right; font-family:var(--mono); font-size:14px;}
   .bactn{flex:0 0 30px; height:28px; display:inline-flex; align-items:center; justify-content:center; font-size:12px;}
   /* .btn.sm carries min-height:40px for thumbs, which made every row WITH a
      button taller than the rows with a ✓ or an hourglass — the boards visibly
@@ -165,7 +166,7 @@
     display:inline-flex; align-items:center; justify-content:center;}
   .bactn .btn.sm::after{content:""; position:absolute; inset:-10px -8px;}
   .avatar svg{width:100%; height:100%; display:block;}
-  .vs{font-size:10px; font-weight:800; color:var(--faint); letter-spacing:.08em; flex:0 0 auto;}
+  .vs{font-size:12px; font-weight:700; color:var(--faint); letter-spacing:.08em; flex:0 0 auto;}
   /* ===== 4.0 tabbed lobby ===== */
   .mono{font-family:var(--mono);}
   /* fixed bottom nav — Play / Friends / Ranks / Profile */
@@ -173,7 +174,7 @@
     background:rgba(9,13,25,.92); backdrop-filter:blur(12px); border-top:1px solid var(--line);
     padding:8px 8px calc(8px + env(safe-area-inset-bottom));}
   .tab{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; background:none; border:none;
-    color:var(--muted); font-size:10.5px; font-weight:700; letter-spacing:.3px; padding:6px 0; position:relative; min-height:48px;}   /* --muted, not --faint: functional labels need ≥4.5:1 */
+    color:var(--muted); font-size:12px; font-weight:600; padding:6px 0; position:relative; min-height:48px;}   /* --muted, not --faint: functional labels need ≥4.5:1 */
   .tab.on{color:#fff;}
   .tab .tico{font-size:21px; line-height:1; opacity:.55;}
   .ico{width:22px; height:22px; display:block;}
@@ -183,7 +184,7 @@
   .eyebrow .ico.ii{width:13px; height:13px; vertical-align:-2.5px;}
   .tab.on .tico{opacity:1;}
   .tab .tbadge{position:absolute; top:0; right:calc(50% - 24px); background:var(--cyan); color:#04322E;
-    font-size:10px; font-weight:800; min-width:16px; height:16px; border-radius:99px; display:grid; place-items:center; padding:0 4px;}
+    font-size:12px; font-weight:700; min-width:20px; height:20px; border-radius:99px; display:grid; place-items:center; padding:0 4px;}
   #app.tabbed{padding-bottom:calc(90px + env(safe-area-inset-bottom));}
   /* mode list (Play tab home) */
   .modelist{display:grid; gap:12px; margin-top:16px;}
@@ -194,10 +195,10 @@
   .modecard:active{transform:scale(.99);}
   .modeicon{width:46px; height:46px; flex:0 0 auto; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:23px;}
   .modecard .mmid{flex:1; min-width:0;}
-  .modecard .mtitle{font-weight:800; font-size:17px; display:flex; align-items:center; gap:8px;}
-  .modecard .mdesc{color:var(--muted); font-size:12.5px; margin-top:2px; line-height:1.35;}
+  .modecard .mtitle{font-weight:700; font-size:17px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px;}
+  .modecard .mdesc{color:var(--muted); font-size:14px; margin-top:2px; line-height:1.35;}
   .modecard .mchev{color:var(--faint); font-size:22px; font-weight:300;}
-  .badge{font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase; padding:3px 7px;
+  .badge{font-size:12px; padding:3px 7px; white-space:nowrap;
     border-radius:20px; background:rgba(255,255,255,.08); color:#B9C6EA; font-weight:400;}
   .badge.live{background:rgba(94,224,214,.16); color:var(--cyan);}
   .badge.hot{background:rgba(246,185,59,.16); color:var(--gold);}
@@ -234,52 +235,52 @@
     background:linear-gradient(135deg, var(--gold), var(--cyan)); box-shadow:0 1px 4px rgba(0,0,0,.55), inset 0 0 6px rgba(255,255,255,.18);}
   .gvinyl .glabel::after{content:""; position:absolute; left:50%; top:50%; width:6px; height:6px; border-radius:50%;
     transform:translate(-50%,-50%); background:#05070F; box-shadow:0 0 0 2px rgba(0,0,0,.35);}
-  .subtag{font-family:var(--mono); font-size:10.5px; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-top:3px;}
+  .subtag{font-size:12px; color:var(--muted); margin-top:6px;}
   .lobby-intro{color:var(--muted); font-size:14px; line-height:1.5; margin:18px 4px 8px; text-align:center; text-wrap:pretty;}
   /* screen title bar for tab pages + config screens */
   .screenhd{display:flex; align-items:center; gap:12px; margin:6px 0 16px;}
-  .screenhd h2{font-family:"Rubik"; font-weight:800; font-size:22px; margin:0; flex:1;}
+  .screenhd h2{font-weight:700; font-size:24px; letter-spacing:-.025em; margin:0; flex:1;}
   .backbtn{background:var(--s2); border:1px solid var(--line); color:var(--text); width:40px; height:40px; border-radius:12px; font-size:18px; flex:0 0 auto;}
   /* Profile identity header: big avatar (tap to change) + inline-editable name */
   .idcard{display:flex; align-items:center; gap:14px;}
   .pfpwrap{position:relative; flex:0 0 auto; padding:0; border:none; background:none; cursor:pointer; line-height:0; border-radius:50%;}
   .pfp{width:64px; height:64px; border-radius:50%; overflow:hidden; display:grid; place-items:center;
-    font-size:31px; font-weight:800; color:var(--gold); background:var(--s2); border:2px solid var(--gold); line-height:1;}
+    font-size:31px; font-weight:700; color:var(--gold); background:var(--s2); border:2px solid var(--gold); line-height:1;}
   .pfp svg{width:100%; height:100%; display:block;}
   .pfp-edit{position:absolute; right:-2px; bottom:-2px; width:22px; height:22px; border-radius:50%;
-    display:grid; place-items:center; font-size:11px; color:var(--bg); background:var(--gold);
+    display:grid; place-items:center; font-size:12px; color:var(--bg); background:var(--gold);
     border:2px solid var(--s1); line-height:1;}
   .idmeta{flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;}
   .namerow{display:flex; align-items:center; gap:8px;}
   input.nameinput{background:none; border:none; border-bottom:1px solid transparent; padding:0 0 3px; flex:1; min-width:0;
-    color:var(--text); font:inherit; font-size:21px; font-weight:800; outline:none; border-radius:0;}
+    color:var(--text); font:inherit; font-size:21px; font-weight:700; outline:none; border-radius:0;}
   input.nameinput:focus{color:var(--gold); border-bottom-color:var(--gold);}
   .nameedit{flex:0 0 auto; width:30px; height:30px; border-radius:9px; display:grid; place-items:center; cursor:pointer;
-    font-size:13px; color:var(--muted); background:var(--s2); border:1px solid var(--line);}
+    font-size:14px; color:var(--muted); background:var(--s2); border:1px solid var(--line);}
   .nameedit:active{transform:scale(.94);}
-  .idsub{font-size:11.5px; margin-top:3px;}
+  .idsub{font-size:12px; margin-top:3px;}
   /* the friend-code renders as a .btn for the tap target, but must READ as a
      text line: kill the chrome and cancel the padding with negative margins so
      "code …" left-aligns exactly under the name instead of floating indented */
   .idsub .btn{border:none; background:none; min-height:0; padding:8px 10px; margin:-8px -10px;
-    font-size:11.5px; color:var(--muted); font-weight:400; width:auto;}
+    font-size:12px; color:var(--muted); font-weight:400; width:auto;}
   /* achievement-unlocked popup: slides in over everything, even result sheets */
   .achpop{position:fixed; top:14px; left:50%; transform:translate(-50%,-140%); z-index:60; display:flex; gap:11px; align-items:center; pointer-events:none;
     background:var(--s2); border:1px solid var(--gold); border-radius:14px; padding:10px 16px; max-width:min(86vw,360px);
-    box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:12.5px; line-height:1.35;
+    box-shadow:0 10px 34px rgba(0,0,0,.55); font-size:14px; line-height:1.35;
     transition:transform .38s cubic-bezier(.2,.9,.3,1.18);}
   .achpop.show{transform:translate(-50%,0);}
   .achpop .apicon{font-size:27px; flex:0 0 auto;}
-  .achpop b{color:var(--gold); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;}
+  .achpop b{color:var(--gold); font-size:12px; letter-spacing:0;}
   @media (prefers-reduced-motion: reduce){ .achpop{transition:none;} }
   /* guided first round: the open slots breathe until the first tap lands */
   .tutpulse .slot.active{animation:tutslot 1.6s ease-in-out infinite;}
   @keyframes tutslot{0%,100%{box-shadow:0 0 0 0 rgba(246,185,59,0);} 50%{box-shadow:0 0 0 4px rgba(246,185,59,.22); border-color:var(--gold);}}
   @media (prefers-reduced-motion: reduce){ .tutpulse .slot.active{animation:none; border-color:var(--gold);} }
-  /* profile stats: a real grid — 3 columns, rows always line up */
-  .statgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px 8px; text-align:center;}
+  /* Four key stats in a two-column grid; additional stats stay accessible. */
+  .statgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:20px 12px; text-align:center;}
   .statgrid .sv{font-family:var(--mono); font-size:20px; font-weight:700; color:var(--gold);}
-  .statgrid .sl{font-size:10px; letter-spacing:.06em; text-transform:uppercase; margin-top:3px; color:var(--muted);}
+  .statgrid .sl{font-size:14px; margin-top:3px; color:var(--muted);}
   /* achievements: compact 3-up tiles (30 badges — rows would be a scroll marathon) */
   .achgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .ach{display:flex; flex-direction:column; align-items:center; gap:4px; padding:11px 6px 9px;
@@ -288,8 +289,8 @@
   .ach:not(.done){opacity:.72;}
   .ach.done{border-color:rgba(246,185,59,.45); background:rgba(246,185,59,.10); opacity:1;}
   .ach .aicon{font-size:22px; line-height:1;}
-  .ach .aname{font-size:10.5px; font-weight:700; text-align:center; line-height:1.25;}
-  .ach .aprog{font-family:var(--mono); font-size:9.5px; color:var(--muted);}
+  .ach .aname{font-size:12px; font-weight:700; text-align:center; line-height:1.25;}
+  .ach .aprog{font-family:var(--mono); font-size:12px; color:var(--muted);}
   .ach.done .aprog{color:var(--good);}
   /* avatar picker grid (in the sheet) */
   .avgrid{display:grid; grid-template-columns:repeat(6,1fr); gap:8px;}
@@ -304,17 +305,17 @@
   .avgrid.muso .avopt.sel{box-shadow:0 0 0 2px var(--gold); border-color:var(--gold);}
   /* segmented 2-up mode toggle */
   .duo .diff{flex:1; flex-direction:column; align-items:flex-start; gap:3px; padding:11px 13px;}
-  .duo .diff .dcards{font-size:11px;}
+  .duo .diff .dcards{font-size:12px;}
   /* game length as one wrapping chip row */
   .diffs.chips{flex-direction:row; flex-wrap:wrap; gap:8px;}
   .chips .diff{flex:0 0 auto; width:auto; border-radius:999px; padding:10px 14px;}
-  .chips .diff .dname{font-size:13.5px;}
+  .chips .diff .dname{font-size:14px;}
   .card.slim{padding:13px 15px;}
   /* connection-trouble banner — unobtrusive, slides down from the top, auto-hides */
   .netbanner{position:fixed; left:50%; top:calc(8px + env(safe-area-inset-top)); transform:translate(-50%,-140%);
     z-index:20; display:flex; align-items:center; gap:8px; max-width:calc(100% - 24px);
     background:rgba(90,30,45,.96); color:#FFE1E9; border:1px solid var(--bad); border-radius:999px;
-    padding:9px 16px; font-size:12.5px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.5);
+    padding:9px 16px; font-size:14px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.5);
     transition:transform .28s ease; pointer-events:none;}
   .netbanner.show{transform:translate(-50%,0);}
   .netdot{width:8px; height:8px; border-radius:50%; background:var(--bad); flex:0 0 auto; animation:netpulse 1s infinite;}
@@ -323,7 +324,7 @@
     transition:opacity .2s; height:0; overflow:hidden;}
   .bufnote.show{opacity:1; height:auto;}
   @media (prefers-reduced-motion: reduce){ .netbanner{transition:none;} .netdot{animation:none;} }
-  .sect{font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; margin:32px 2px 10px; color:var(--muted);}
+  .sect{font-size:14px; font-weight:600; margin:32px 2px 10px; color:var(--muted);}
   .startbar .btn{box-shadow:0 6px 24px rgba(0,0,0,.55);}
   .diffs{display:flex; flex-direction:column; gap:8px;}
   .diff{display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -369,8 +370,8 @@
   .deck-page .dchip:nth-child(6n+5){background:linear-gradient(160deg,#2A143A,#161D33 75%);}
   .dchip .de{font-size:22px; flex:0 0 auto;}
   .dchip .dm{min-width:0; width:100%;}
-  .dchip .dn2{display:block; font-weight:800; font-size:13.5px; line-height:1.25;}
-  .dchip .dc2{display:block; font-size:10.5px; color:var(--muted); margin-top:3px; line-height:1.3;}
+  .dchip .dn2{display:block; font-weight:700; font-size:14px; line-height:1.25;}
+  .dchip .dc2{display:block; font-size:12px; color:var(--muted); margin-top:3px; line-height:1.3;}
   .dchip.sel{border-top-color:var(--gold); border-left-color:var(--gold); border-right-color:var(--gold);
     border-bottom-color:var(--gold); box-shadow:none;}
   .dchip.sel .dn2{color:var(--gold);}
@@ -382,22 +383,22 @@
   .res-meta{flex:1; min-width:0;}
   .res-ti{font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .res-ar{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .res-yr{flex:0 0 auto; font-family:"Anton"; font-size:18px; color:var(--cyan); width:54px; text-align:center;}
+  .res-yr{flex:0 0 auto; font-family:var(--ui); font-weight:700; font-size:18px; color:var(--cyan); width:54px; text-align:center;}
   .song-row{display:flex; align-items:center; gap:10px; background:var(--s2); border:1px solid transparent;
     border-radius:12px; padding:10px 12px;}
-  .song-row input.yr{width:74px; flex:0 0 auto; text-align:center; font-family:"Anton"; font-size:18px;
+  .song-row input.yr{width:74px; flex:0 0 auto; text-align:center; font-family:var(--ui); font-weight:700; font-size:18px;
     color:var(--gold); padding:8px 6px; -moz-appearance:textfield;}
   .song-row input.yr::-webkit-outer-spin-button, .song-row input.yr::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
 
   /* GAME */
   .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
-  .turn-name{font-family:"Anton"; font-size:30px; line-height:1;}
+  .turn-name{font-weight:700; font-size:28px; letter-spacing:-.025em; line-height:1.15; overflow-wrap:anywhere;}
   .lb2{display:flex; flex-direction:column; gap:6px; margin-top:6px;}
   .lb2-row{display:flex; align-items:center; gap:10px; padding:8px 11px; border-radius:10px;
     border:1px solid transparent; background:var(--s1);}
   .lb2-row.me{border-color:rgba(255,200,94,.5); background:var(--s2);}
   .lb2-rank{font-size:15px; width:20px; text-align:center; flex:0 0 auto; color:var(--muted); font-weight:700;}
-  .lb2-nm{font-weight:700; font-size:13px; flex:0 0 auto; width:72px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lb2-nm{font-weight:700; font-size:14px; flex:0 0 auto; width:72px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .lb2-bar{flex:1; height:7px; border-radius:99px; background:var(--ink); overflow:hidden;}
   .lb2-fill{display:block; height:100%; background:linear-gradient(90deg,var(--cyan),var(--gold)); border-radius:99px; transition:width .3s;}
   .lb2-sc{font-size:12px; color:var(--muted); flex:0 0 auto; min-width:42px; text-align:right;}
@@ -411,10 +412,10 @@
   @keyframes eq{0%,100%{height:9px}50%{height:34px}}
   .eq.paused span{animation-play-state:paused; height:9px;}
   .eq.viz span{animation:none !important;}   /* live audio drives the heights */
-  .stage h2{font-family:"Anton"; font-weight:400; font-size:22px; margin:4px 0 2px; letter-spacing:.5px;}
-  .stage p{margin:0; color:var(--muted); font-size:13.5px;}
+  .stage h2{font-weight:600; font-size:18px; margin:4px 0 2px;}
+  .stage p{margin:0; color:var(--muted); font-size:14px;}
 
-  .tl-label{font-size:12px; color:var(--muted); letter-spacing:.16em; text-transform:uppercase; margin:0 0 8px;}
+  .tl-label{font-size:14px; font-weight:600; color:var(--muted); margin:0 0 8px;}
   .timeline{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; padding:4px 2px 12px;}
   .slot{flex:0 0 auto; width:62px; align-self:stretch; min-height:96px; border-radius:12px;
     border:1.5px dashed var(--line); background:rgba(255,255,255,.015); color:var(--muted);
@@ -422,18 +423,18 @@
   .slot.active{border-color:var(--cyan); color:var(--cyan); background:rgba(77,212,255,.07);}
   .slot.active:active{background:rgba(77,212,255,.18);}
   .slot .ins{font-size:18px;}
-  .slot .rng{font-size:11px; line-height:1.2; text-align:center;}
+  .slot .rng{font-size:12px; line-height:1.2; text-align:center;}
   .tie{flex:0 0 auto; align-self:center; color:var(--muted); font-size:15px; font-weight:700; opacity:.55; padding:0 2px;}
   .placed{flex:0 0 auto; width:104px; min-height:96px; border-radius:12px; background:var(--s2);
     border:1px solid transparent; padding:10px 9px; display:flex; flex-direction:column; justify-content:space-between;}
-  .placed .yr{font-family:"Anton"; font-size:30px; color:var(--gold); line-height:.9;}
-  .placed .ti{font-size:11px; line-height:1.25; max-height:42px; overflow:hidden;}
-  .placed .ar{font-size:10px; color:var(--muted); margin-top:2px;}
-  .empty-tl{color:var(--muted); font-size:13px; padding:14px 2px;}
+  .placed .yr{font-weight:700; font-size:28px; color:var(--gold); line-height:1.1;}
+  .placed .ti{font-size:12px; line-height:1.25; max-height:42px; overflow:hidden;}
+  .placed .ar{font-size:12px; color:var(--muted); margin-top:2px;}
+  .empty-tl{color:var(--muted); font-size:14px; padding:14px 2px;}
 
   .controls{display:flex; gap:10px; margin-top:6px;}
   .controls .btn{flex:1;}
-  .verify-state{margin-top:10px; font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--cyan);}
+  .verify-state{margin-top:10px; font-size:12px; font-weight:700; letter-spacing:0; color:var(--cyan);}
 
   /* loading */
   .loadwrap{text-align:center; padding:60px 18px;}
@@ -458,9 +459,9 @@
     border-radius:0 0 var(--r-sheet) var(--r-sheet);}
   .sheetfoot .btn{margin-top:0;}
   @keyframes pop{from{transform:scale(.9); opacity:0}to{transform:scale(1); opacity:1}}
-  .verdict{font-family:"Anton"; font-size:34px; letter-spacing:1px; margin-bottom:4px;}
+  .verdict{font-weight:700; font-size:28px; letter-spacing:-.025em; line-height:1.15; margin-bottom:4px; overflow-wrap:anywhere;}
   .verdict.good{color:var(--good);} .verdict.bad{color:var(--bad);}
-  .reveal-yr{font-family:"Anton"; font-size:72px; line-height:.9; margin:10px 0 2px;}
+  .reveal-yr{font-weight:700; font-size:64px; letter-spacing:-.04em; line-height:1; margin:10px 0 2px;}
   .reveal-ti{font-size:17px; font-weight:700;}
   .reveal-ar{color:var(--muted); margin:2px 0 18px;}
   .report-yr{margin:12px 0 2px;}
@@ -469,7 +470,7 @@
   .report-yr summary::-webkit-details-marker{display:none;}
   .report-yr[open] summary{opacity:1; margin-bottom:2px;}
   .year-fix{display:flex; align-items:center; justify-content:center; gap:8px;}
-  .year-fix .muted{font-size:12px; letter-spacing:.12em; text-transform:uppercase;}
+  .year-fix .muted{font-size:12px; letter-spacing:0;}
   .year-fix input.rev-yr{width:92px; height:46px; font-size:20px; text-align:center; -moz-appearance:textfield;}
   .year-fix input.rev-yr::-webkit-outer-spin-button, .year-fix input.rev-yr::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
   .winner-emoji{font-size:54px;}
@@ -477,13 +478,13 @@
      button is stretched invisibly over it and takes the click */
   .gwrap{position:relative; display:inline-flex;}
   .gbtn{display:inline-flex; align-items:center; gap:9px; border:1px solid var(--line); border-radius:999px;
-    padding:11px 18px; font-size:13.5px; font-weight:700; color:var(--text); background:var(--surface-2);}
+    padding:11px 18px; font-size:14px; font-weight:700; color:var(--text); background:var(--surface-2);}
   .greal{position:absolute; inset:0; opacity:.001; overflow:hidden; z-index:1;}
   .gwrap:focus-within .gbtn{border-color:var(--gold);}   /* the invisible real button carries focus */
   .frname{background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:5px 11px;
-    color:var(--text); font-weight:700; font-size:13px; cursor:pointer;}
+    color:var(--text); font-weight:700; font-size:14px; cursor:pointer;}
   /* the friend code reads like a ticket stub */
-  #friendsCard button[aria-label="Share your friend code"] b{font-family:"Anton"; font-weight:400; letter-spacing:1px;}
+  #friendsCard button[aria-label="Share your friend code"] b{font-family:var(--ui); font-weight:600; letter-spacing:1px;}
   .frname:active{border-color:var(--gold);}
   .eyebtn{background:none; border:none; padding:0; cursor:pointer; font:inherit;}
   .ovrow{display:flex; width:100%; align-items:center; gap:10px; background:none; border:none;
@@ -506,7 +507,7 @@
      bottom of the list. Plain flow here. */
   .ovlist + .sheetfoot{position:static; flex:0 0 auto;}
   .ovrow b{flex:1; font-size:14px;}
-  .ovrow span:not(.avatar):not(.ovact){flex:0 0 76px; text-align:right; font-size:13px;}
+  .ovrow span:not(.avatar):not(.ovact){flex:0 0 76px; text-align:right; font-size:14px;}
   /* The row IS the button, so this is a visual affordance rather than a nested
      <button> (invalid HTML). A bare icon out at the right edge reads as a label;
      a pill says the row does something. Word only, no icon — the pill already
@@ -514,7 +515,7 @@
      like "Groovy Flamingo" onto a second line. */
   .ovrow .ovact{flex:0 0 auto; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;
     background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
-    padding:6px 11px; font-size:12.5px; line-height:16px; font-weight:700; color:var(--text);}
+    padding:6px 11px; font-size:14px; line-height:16px; font-weight:700; color:var(--text);}
   .ovrow:active .ovact{border-color:var(--gold);}
   .ovrow[disabled]{opacity:.6; cursor:default;}
   .ovrow[disabled] .ovact{background:none; border-color:transparent; color:var(--good);}
@@ -523,15 +524,35 @@
     animation:confall linear forwards;}
   @keyframes confall{to{transform:translateY(116vh) rotate(720deg); opacity:.7;}}
   .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:var(--bad); color:#fff;
-    padding:11px 16px; border-radius:11px; font-size:13.5px; max-width:90%; text-align:center; z-index:60;
+    padding:11px 16px; border-radius:11px; font-size:14px; max-width:90%; text-align:center; z-index:60;
     box-shadow:0 8px 30px rgba(0,0,0,.4); display:none; pointer-events:none;}
   .toast.show{display:block;}
   #errbar{display:none; position:fixed; top:0; left:0; right:0; z-index:70; background:#3A1418; color:#FFD9D9;
-    border-bottom:1px solid var(--bad); padding:14px 16px; font-size:13.5px; line-height:1.55; white-space:pre-wrap; cursor:pointer;}
-  .footnote{margin-top:26px; font-size:11.5px; color:var(--muted); text-align:center; line-height:1.6;}
+    border-bottom:1px solid var(--bad); padding:14px 16px; font-size:14px; line-height:1.55; white-space:pre-wrap; cursor:pointer;}
+  .footnote{margin-top:26px; font-size:12px; color:var(--muted); text-align:center; line-height:1.6;}
   .footnote a{display:inline-block; padding:6px 2px;}   /* small links, honest tap targets */
   .card[onclick]:focus-visible, .btn:focus-visible, .slot:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
   a{color:var(--cyan);}
+  [hidden]{display:none !important;}
+  .disclosure > summary{cursor:pointer; min-height:44px; padding:10px 0; font-size:14px; font-weight:600; color:var(--muted);}
+  .disclosure > summary:focus-visible{outline:2px solid var(--cyan); outline-offset:4px; border-radius:4px;}
+  .disclosure[open] > summary{margin-bottom:10px; color:var(--text);}
+  .deck-picker > summary{display:flex; align-items:center; justify-content:space-between; gap:16px; list-style:none;}
+  .deck-picker > summary::-webkit-details-marker{display:none;}
+  .deck-picker > summary > span:first-child{flex:1; min-width:0;}
+  .deck-picker small{display:block; font-size:12px; color:var(--muted); font-weight:400;}
+  .deck-picker b{display:block; font-size:16px; color:var(--text); overflow-wrap:anywhere;}
+  .deck-picker .change-deck{flex:0 0 auto; color:var(--cyan);}
+  .settings{margin-top:12px;}
+  .settings > summary{font-size:18px; color:var(--text);}
+  .setting-row{padding:16px 0; border-top:1px solid var(--line);}
+  .setting-row .row > div{flex:1; min-width:0;}
+  .setting-row .row > button{flex:0 0 auto;}
+  .segmented{display:flex; gap:6px; padding:4px; border-radius:14px; background:var(--s1); margin-bottom:12px;}
+  .segmented button{flex:1; padding:11px 8px; min-height:44px; color:var(--muted); background:transparent; font-size:14px;}
+  .segmented button[aria-pressed="true"]{background:var(--s3); color:var(--text);}
+  .segmented button:focus-visible{outline:2px solid var(--cyan);}
+  .modecard:first-child{border-color:rgba(246,185,59,.45); background:linear-gradient(120deg,rgba(246,185,59,.10),var(--s1));}
   @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important;} }
 </style>
 </head>
@@ -546,7 +567,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.49.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.50.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5647,7 +5668,7 @@ function lbLineHTML(b){
   if(!b || !b.me) return `<span class="muted">leaderboard unavailable</span>`;
   const medal = b.me.rank===1 ? "🥇" : b.me.rank===2 ? "🥈" : b.me.rank===3 ? "🥉" : "🌍";
   const mini = (b.top||[]).slice(0,3).map((t,i)=>`${["🥇","🥈","🥉"][i]} ${esc(t.nick)} ${t.score}/${RUN_LEN}`).join(" · ");
-  return `${medal} <b>#${b.me.rank}</b> of ${b.total} today${mini ? `<div class="muted" style="font-size:11.5px; margin-top:3px">${mini}</div>` : ``}`;
+  return `${medal} <b>#${b.me.rank}</b> of ${b.total} today${mini ? `<div class="muted" style="font-size:12px; margin-top:3px">${mini}</div>` : ``}`;
 }
 function saveNickTop(v){
   const before = lbNick();
@@ -5883,7 +5904,7 @@ function findPlayers(q, now){
     // is exactly how this got reported, because the per-IP limit covers every
     // social call and a few tab switches plus typing can reach it.
     if(!r || !r.ok){
-      el.innerHTML = `<div class="muted" style="font-size:12.5px; margin-top:6px">${
+      el.innerHTML = `<div class="muted" style="font-size:14px; margin-top:6px">${
         r && r.status === 429 ? "Too many requests just now — wait a few seconds." : "Search didn't go through — check your connection."
       } <button class="btn ghost sm" style="margin-left:6px" onclick="findPlayers(document.getElementById('findIn').value,1)">↻ Try again</button></div>`;
       return;
@@ -5892,7 +5913,7 @@ function findPlayers(q, now){
     el.innerHTML = res.length ? res.map(p => `<div class="row" style="justify-content:space-between; align-items:center; gap:8px; margin-top:7px">
         <span style="display:inline-flex; gap:9px; align-items:center; min-width:0">
           <span class="avatar" aria-hidden="true">${avatarFor(p.avatar, p.handle)}</span>
-          <b style="font-size:13.5px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(p.handle)}</b>
+          <b style="font-size:14px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(p.handle)}</b>
         </span>
         ${p.rel === "friend" ? `<span class="muted" style="font-size:12px; flex:0 0 auto">✓ friends</span>`
         : p.rel === "sent" ? `<span class="muted" style="font-size:12px; flex:0 0 auto">⏳ asked</span>`
@@ -5901,10 +5922,10 @@ function findPlayers(q, now){
       // "no results" for your OWN name is the other way to read this as broken:
       // you are excluded from your own search results by design, so say so
       : (((loadProfile()||{}).handle||"").toLowerCase().includes(q.toLowerCase())
-        ? `<div class="muted" style="font-size:12.5px; margin-top:6px">That's your own name — search for someone else's.</div>`
+        ? `<div class="muted" style="font-size:14px; margin-top:6px">That's your own name — search for someone else's.</div>`
         // players who never claimed a name have no account, so no search can
         // ever find them — say that, it's the usual reason someone is "missing"
-        : `<div class="muted" style="font-size:12.5px; margin-top:6px">No “${esc(q)}” yet. People only show up here once they've claimed a name in the app — ask them to, or send them your code.</div>`);
+        : `<div class="muted" style="font-size:14px; margin-top:6px">No “${esc(q)}” yet. People only show up here once they've claimed a name in the app — ask them to, or send them your code.</div>`);
   };
   now ? go() : (_findT = setTimeout(go, 300));
 }
@@ -5945,7 +5966,7 @@ function overlayInviteClaim(){
   sheet.innerHTML = `
     <div class="winner-emoji">🎧</div>
     <div class="verdict good" style="margin-top:2px">A friend invited you!</div>
-    <div class="muted" style="font-size:13.5px; margin:6px 6px 14px">Claim a name to join — your friend gets added automatically.</div>
+    <div class="muted" style="font-size:14px; margin:6px 6px 14px">Claim a name to join — your friend gets added automatically.</div>
     <input id="inviteName" maxlength="20" value="${esc(lbNick())}" aria-label="Your player name" style="width:100%; text-align:center; font-size:16px" onkeydown="if(event.key==='Enter')claimFromInvite()" onfocus="this.select()" />
     <button class="btn primary" style="margin-top:12px" onclick="claimFromInvite()">Claim name &amp; add friend</button>
     <button class="btn ghost sm" style="margin-top:8px" onclick="closeOverlay()">Maybe later</button>`;
@@ -5990,10 +6011,10 @@ function friendsOverview(){
     <div class="ovrow" style="cursor:default; border-bottom:1px solid var(--line); padding-bottom:6px" aria-hidden="true">
       <span class="avatar sm" style="visibility:hidden"></span>
       <b class="muted" style="font-weight:400; font-size:12px">tap a friend for details</b>
-      <span class="muted" style="font-size:11px">all-time</span>
-      <span class="muted" style="font-size:11px">last 7 days</span>
+      <span class="muted" style="font-size:12px">all-time</span>
+      <span class="muted" style="font-size:12px">last 7 days</span>
     </div>${rows}`
-    : `<div class="muted" style="font-size:13.5px; margin:10px 0">No friends yet — share your code and the standings fill up.</div>`}
+    : `<div class="muted" style="font-size:14px; margin:10px 0">No friends yet — share your code and the standings fill up.</div>`}
     <button class="btn ghost" style="margin-top:14px" onclick="closeOverlay()">Close</button>
   `;
   showSheet();
@@ -6009,7 +6030,7 @@ function friendDetail(id){
     : l7 > w7 ? `<b style="color:var(--bad)">they lead — ${l7}–${w7}${t7?` · ${t7} tie${t7===1?'':'s'}`:''}</b>`
     : `<b>🤝 dead even — ${w7}–${l7}${t7?` · ${t7} tie${t7===1?'':'s'}`:''}</b>`;
   const ago = ts => { const d = Math.floor((Date.now()-ts)/864e5); return d<=0 ? "today" : d===1 ? "yesterday" : d+" days ago"; };
-  const rows = (f.recent||[]).map(r => `<div style="font-size:13.5px; margin:5px 0">
+  const rows = (f.recent||[]).map(r => `<div style="font-size:14px; margin:5px 0">
       <span class="muted" style="font-size:12px">${ago(r.at)}</span> · you <b>${r.mine|0}/${RUN_LEN}</b> vs <b>${r.theirs|0}/${RUN_LEN}</b>
       ${r.r==='w' ? '🏆' : r.r==='l' ? `<span style="color:var(--bad)">✗</span>` : '🤝'}</div>`).join("");
   const sheet = document.getElementById("sheet");
@@ -6018,9 +6039,9 @@ function friendDetail(id){
     <div class="verdict ${w >= l ? 'good' : 'bad'}" style="margin-top:6px">${esc(f.handle)}</div>
     <div style="font-size:15px; margin:8px 0 2px">all-time: <b>you ${w}–${l}</b>${t ? ` · ${t} tie${t===1?'':'s'}` : ``}</div>
     <div style="font-size:14px; margin:4px 0 10px">last 7 days: ${weekLine}</div>
-    ${(f.sbest|0) || (f.tbest|0) ? `<div class="muted" style="font-size:12.5px; margin:0 0 8px">${(f.sbest|0) ? `🎯 survival best <b style="color:var(--text)">${f.sbest|0}</b>` : ``}${(f.sbest|0)&&(f.tbest|0) ? ' · ' : ''}${(f.tbest|0) ? `⚡ turbo best <b style="color:var(--text)">${f.tbest|0}/${RUN_LEN}</b>` : ``}</div>` : ``}
+    ${(f.sbest|0) || (f.tbest|0) ? `<div class="muted" style="font-size:14px; margin:0 0 8px">${(f.sbest|0) ? `🎯 survival best <b style="color:var(--text)">${f.sbest|0}</b>` : ``}${(f.sbest|0)&&(f.tbest|0) ? ' · ' : ''}${(f.tbest|0) ? `⚡ turbo best <b style="color:var(--text)">${f.tbest|0}/${RUN_LEN}</b>` : ``}</div>` : ``}
     ${rows ? `<div style="border-top:1px solid var(--line); padding-top:8px; margin-top:4px">${rows}</div>`
-           : `<div class="muted" style="font-size:13.5px; margin:8px 0">No duels yet — throw the first gauntlet!</div>`}
+           : `<div class="muted" style="font-size:14px; margin:8px 0">No duels yet — throw the first gauntlet!</div>`}
     <button class="btn pink" style="margin-top:14px" onclick="closeOverlay(); challengeFriend('${f.id}')">${ico('swords',1)} Challenge ${esc(f.handle)}</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeOverlay()">Close</button>
     <button class="btn ghost sm" style="margin-top:6px; font-size:12px; color:var(--muted)"
@@ -6055,8 +6076,8 @@ function openChallengePicker(){
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
     <div class="winner-emoji">⚔️</div>
-    <div class="verdict good" style="margin-top:2px">Who are you challenging?</div>
-    <div class="muted" style="font-size:12.5px; margin:2px 0 10px">You play 5 songs first — then they get your gauntlet.</div>
+    <div class="verdict good" style="margin-top:2px">Challenge a friend</div>
+    <div class="muted" style="font-size:14px; margin:2px 0 10px">Play 5 songs, then send your challenge.</div>
     <div class="ovlist">${rows}</div>
     <div class="sheetfoot">
       <button class="btn pink" onclick="closeOverlay(); startFreshChallenge()">${ico('link',1)} Anyone — share a link</button>
@@ -6376,7 +6397,7 @@ function feedRowHTML(e){
                          + (e.e ? ` <span style="font-size:15px">${esc(e.e)}</span>` : ``); break;
     case "chal-in": icon = "⚔️"; text = `${who} challenged you${e.s!=null ? ` — beat ${e.s}/${RUN_LEN}` : ``}`; break;
     case "chal-out":icon = "⚔️"; text = `You challenged ${who} — ${e.s}/${RUN_LEN} to beat`
-                         + ((_social && _social.sent || []).some(x => x.handle === e.who) ? ` <span title="Still waiting" style="font-size:13px">⏳</span>` : ``); break;
+                         + ((_social && _social.sent || []).some(x => x.handle === e.who) ? ` <span title="Still waiting" style="font-size:14px">⏳</span>` : ``); break;
     case "friend":  icon = "🎉"; text = `${who} added you as a friend`; break;
     case "react":   icon = esc(e.e || "👏"); text = `${who} reacted to your result`; break;
     case "run":     icon = e.kind==="turbo" ? "⚡" : "🎯";
@@ -6387,8 +6408,8 @@ function feedRowHTML(e){
   // a friend's result on YOUR challenge is reactable after the fact — tap the row
   const reactable = e.k === "result" && e.u && LB.url;
   const inner = `<span style="flex:0 0 30px; text-align:center; font-size:17px" aria-hidden="true">${icon}</span>
-    <span style="flex:1; min-width:0; font-size:13px; text-align:left">${text}</span>
-    <span class="muted" style="flex:0 0 auto; font-size:10.5px; font-family:var(--mono)">${fmtAgo(e.t)}</span>`;
+    <span style="flex:1; min-width:0; font-size:14px; text-align:left">${text}</span>
+    <span class="muted" style="flex:0 0 auto; font-size:12px; font-family:var(--mono)">${fmtAgo(e.t)}</span>`;
   return reactable
     ? `<button type="button" style="display:flex; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); width:100%; background:none; border-left:none; border-right:none; border-bottom:none; color:var(--text); font:inherit; cursor:pointer"
         onclick="openReactSheet('${e.u}','${esc(e.who || "")}')" aria-label="React to ${esc(e.who || "this result")}">${inner}</button>`
@@ -6405,7 +6426,7 @@ function openPassOnSheet(){
   sheet.innerHTML = `
     <div class="winner-emoji">📤</div>
     <div class="verdict good" style="margin-top:2px">Pass this set on</div>
-    <div class="muted" style="font-size:12.5px; margin:2px 0 10px">Same ${RUN_LEN} songs — you set <b style="color:var(--text)">${p.score}/${RUN_LEN}</b> to beat.</div>
+    <div class="muted" style="font-size:14px; margin:2px 0 10px">Same ${RUN_LEN} songs — you set <b style="color:var(--text)">${p.score}/${RUN_LEN}</b> to beat.</div>
     <div class="ovlist">${fr.slice(0,8).map(f=>`<button class="ovrow" onclick="sendChal('${f.id}','${chalKey(p.idx)}',${p.score},${p.timeMs}); this.disabled=true; this.querySelector('.ovact').textContent='✓ Sent'">
       <span class="avatar" aria-hidden="true">${friendAvatar(f)}</span><b>${esc(f.handle)}</b>
       <span class="ovact">Send</span></button>`).join("")}</div>
@@ -6440,7 +6461,8 @@ function recentGamesHTML(){
   if(!games.length) return "";
   return `<div class="card" style="margin-top:12px">
     <div class="eyebrow" style="margin-top:0">${ico('pad',1)} recent games</div>
-    <div style="height:2px"></div>${games.map(feedRowHTML).join("")}</div>`;
+    <div style="height:2px"></div>${games.slice(0,3).map(feedRowHTML).join("")}
+    ${games.length>3 ? `<details id="moreRecentGames" class="disclosure"><summary>View recent history</summary>${games.slice(3).map(feedRowHTML).join("")}</details>` : ``}</div>`;
 }
 function pickAvatar(v){
   if(v) store.set("tl_avatar", v); else store.del("tl_avatar");
@@ -6457,7 +6479,7 @@ function openAvatarPicker(){
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
     <div class="verdict good" style="margin-top:2px">Pick a profile picture</div>
-    <div class="muted" style="font-size:12.5px; margin:2px 0 12px">60 little music legends — tap one, or roll the dice</div>
+    <div class="muted" style="font-size:14px; margin:2px 0 12px">60 little music legends — tap one, or roll the dice</div>
     <div class="avgrid muso">${grid}</div>
     <button class="btn ghost" style="margin-top:12px" onclick="shuffleAvatar()">${ico('dice',1)} Surprise me</button>
     <button class="btn ghost" style="margin-top:8px" onclick="closeOverlay()">Close</button>`;
@@ -6468,10 +6490,10 @@ function friendsCardHTML(st){
   if(!prof){
     return `<div class="card slim">
       <div class="eyebrow" style="color:var(--violet)">${ico('users',1)} friends</div>
-      <div class="muted" style="font-size:13.5px; margin-top:4px">Claim a name to add friends and challenge them directly.</div>
+      <div class="muted" style="font-size:14px; margin-top:4px">Choose a name to play with friends.</div>
       <div class="row" style="gap:8px; margin-top:10px">
         <input id="handleIn" maxlength="20" value="${esc(lbNick())}" style="flex:1" aria-label="Your player name" />
-        <button class="btn sm primary" style="flex:0 0 auto" onclick="claimHandle(document.getElementById('handleIn').value)">Claim</button>
+        <button class="btn sm primary" style="flex:0 0 auto" onclick="claimHandle(document.getElementById('handleIn').value)">Save name</button>
       </div>
       ${GAUTH.clientId ? `<div class="muted" style="font-size:12px; margin-top:10px">Played before on another phone?</div>
       <div id="gsiBtn" style="margin-top:6px"></div>` : ``}</div>`;
@@ -6500,7 +6522,7 @@ function friendsCardHTML(st){
           const next = q[0], n = q.length;
           const beat = next.payload && next.payload.score != null ? `beat ${next.payload.score}/${RUN_LEN}` : ``;
           return `<div class="row" style="justify-content:space-between; align-items:center; margin-top:9px">
-        <span style="font-size:13.5px; display:inline-flex; align-items:center; gap:8px; min-width:0"><span class="avatar" aria-hidden="true">${friendAvatar(next)}</span><span>⚔️ <b>${esc(next.handle)}</b> ${n>1 ? `sent ${n} challenges — next: ${beat}` : `challenged you${beat ? ` — ${beat}` : ``}`}</span></span>
+        <span style="font-size:14px; display:inline-flex; align-items:center; gap:8px; min-width:0"><span class="avatar" aria-hidden="true">${friendAvatar(next)}</span><span>⚔️ <b>${esc(next.handle)}</b> ${n>1 ? `sent ${n} challenges — next: ${beat}` : `challenged you${beat ? ` — ${beat}` : ``}`}</span></span>
         <span style="flex:0 0 auto; display:inline-flex; gap:6px; align-items:center">
           ${n>1 ? `<button class="btn ghost sm" onclick="dismissChals('${next.from}')" aria-label="Dismiss all from ${esc(next.handle)}">✕</button>` : ``}
           <button class="btn sm pink" onclick="playInboxChal(${next.id})">▶ Play</button>
@@ -6508,7 +6530,7 @@ function friendsCardHTML(st){
       </div>`;}).join("");
       })()}
       ${newFriends.map(m=>`<div class="inboxrow">
-        <span class="txt">⚔️ <b>${esc(m.handle)}</b> used your code — you're friends now!</span>
+        <span class="txt">⚔️ <b>${esc(m.handle)}</b> added you</span>
         <button class="btn sm" onclick="dismissMsg(${m.id})">✓ Got it</button>
       </div>`).join("")}
       ${results.map(m=>{
@@ -6545,28 +6567,26 @@ function friendsCardHTML(st){
             <button class="frname" onclick="friendDetail('${f.id}')" aria-label="Duel record with ${esc(f.handle)}">${esc(f.handle)}</button>
           </span>
           <span style="display:inline-flex; gap:9px; align-items:center; flex:0 0 auto">
-            ${(st && st.sent || []).some(x => x.to === f.id) ? `<span title="Your challenge is waiting for them" aria-label="Challenge outstanding" style="font-size:13px">⏳</span>` : ``}
-            ${any ? `<span style="font-size:12.5px; color:${col}">${w > l ? "👑 " : ""}you ${w}–${l}${t ? ` · ${t} tie${t===1?"":"s"}` : ``}</span>` : ``}
+            ${(st && st.sent || []).some(x => x.to === f.id) ? `<span title="Your challenge is waiting for them" aria-label="Challenge outstanding" style="font-size:14px">⏳</span>` : ``}
+            ${any ? `<span style="font-size:14px; color:${col}">${w > l ? "👑 " : ""}you ${w}–${l}${t ? ` · ${t} tie${t===1?"":"s"}` : ``}</span>` : ``}
             <button class="btn sm" style="padding:6px 11px" onclick="challengeFriend('${f.id}')" aria-label="Challenge ${esc(f.handle)}">${ico('swords',1)}</button>
           </span>
         </div>`;}).join("")
-      : `<div class="muted" style="font-size:13.5px; margin-top:10px">No friends yet — send someone your invite link. One tap and you're linked ⚔️</div>
+      : `<div class="muted" style="font-size:14px; margin-top:10px">Invite a friend to play your first challenge.</div>
       <button class="btn pink" style="margin-top:10px" onclick="shareCode()">${ico('share',1)} Invite a friend</button>`}
-      <div class="muted" style="font-size:12px; margin-top:${fr.length ? 11 : 12}px">Search for a player by name:</div>
+      <details id="addFriendPanel" class="disclosure" style="margin-top:10px"><summary>Add a friend</summary>
+      <label class="fld" for="findIn">Player name</label>
       <div class="row" style="gap:8px; margin-top:7px">
         <input id="findIn" maxlength="20" placeholder="their player name" style="flex:1" aria-label="Search players by name"
           oninput="findPlayers(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();findPlayers(this.value,1);}" />
       </div>
       <div id="findOut" style="margin-top:6px"></div>
-      <div class="muted" style="font-size:12px; margin-top:11px">Or add a friend's code:</div>
+      <label class="fld" for="codeIn" style="margin-top:12px">Or enter a friend code</label>
       <div class="row" style="gap:8px; margin-top:7px">
         <input id="codeIn" maxlength="9" placeholder="YW-XXXXXX" style="flex:1; text-transform:uppercase" aria-label="Friend code" />
         <button class="btn sm" style="flex:0 0 auto" onclick="addFriendCode(document.getElementById('codeIn').value)">+ Add</button>
       </div>
-      ${GAUTH.clientId ? (prof.linked
-        ? `<div class="muted" style="font-size:12px; margin-top:9px">✓ Google-linked — your name &amp; friends survive a new phone</div>`
-        : `<div class="muted" style="font-size:12px; margin-top:10px">🔐 Link Google so your account survives a new phone:</div>
-           <div id="gsiBtn" style="margin-top:6px"></div>`) : ``}</div>`;
+      </details></div>`;
 }
 function renderFriendsCard(st){
   const el = document.getElementById("friendsCard");
@@ -6575,10 +6595,22 @@ function renderFriendsCard(st){
   // friends must not see the "No friends yet" empty state flash while it loads
   if(LB.url && !st && loadProfile()){
     el.innerHTML = `<div class="card slim"><div class="eyebrow" style="color:var(--violet)">${ico('users',1)} friends</div>
-      <div class="muted" style="font-size:13.5px; margin-top:6px">Loading…</div></div>`;
+      <div class="muted" style="font-size:14px; margin-top:6px">Loading…</div></div>`;
     return;
   }
+  const adding = document.getElementById("addFriendPanel");
+  const addState = adding && adding.open ? {
+    name: document.getElementById("findIn").value, code: document.getElementById("codeIn").value,
+    results: document.getElementById("findOut").innerHTML, focused: document.activeElement && document.activeElement.id
+  } : null;
   el.innerHTML = LB.url ? friendsCardHTML(st) : "";
+  if(addState && document.getElementById("addFriendPanel")){
+    document.getElementById("addFriendPanel").open=true;
+    document.getElementById("findIn").value=addState.name;
+    document.getElementById("codeIn").value=addState.code;
+    document.getElementById("findOut").innerHTML=addState.results;
+    if(["findIn","codeIn"].includes(addState.focused)) document.getElementById(addState.focused).focus({preventScroll:true});
+  }
   mountGoogleBtn();
 }
 
@@ -6606,7 +6638,7 @@ async function lbFetchChal(setkey){
 function chalOthersHTML(b){
   const rows = (b && b.results || []).slice(0,5).map(r=>
     `${r.you ? `<b>${esc(lbNick())}</b> <span style="opacity:.75">(you)</span>` : '<b>'+esc(r.nick)+'</b>'} ${r.score}/${RUN_LEN} ⏱ ${fmtTime(r.timeMs)}`);
-  return rows.length ? `<div class="muted" style="font-size:12.5px; margin-top:8px">🏁 ${b.total} played this set: ${rows.join(" · ")}</div>` : "";
+  return rows.length ? `<div class="muted" style="font-size:14px; margin-top:8px">🏁 ${b.total} played this set: ${rows.join(" · ")}</div>` : "";
 }
 // "someone played your challenge!" — check own recent sets for new results
 async function chalNews(){
@@ -6627,7 +6659,7 @@ async function chalNews(){
   if(el && lines.length) el.innerHTML = `
     <div class="card" style="border-color:var(--violet)">
       <div class="eyebrow" style="color:var(--violet)">🏁 new results on your challenges</div>
-      ${lines.map(l=>`<div class="muted" style="font-size:13.5px; margin-top:5px">${l}</div>`).join("")}
+      ${lines.map(l=>`<div class="muted" style="font-size:14px; margin-top:5px">${l}</div>`).join("")}
     </div>`;
 }
 /* GoatCounter events: page views count automatically; these answer "do shared
@@ -6892,7 +6924,8 @@ function setDutchDeckPreference(value){
   renderSetup();
   const control = document.getElementById("dutchDeckPreference");
   if(control){
-    const details = control.closest("details"); if(details) details.open = true;
+    let details = control.closest("details");
+    while(details){ details.open = true; details = details.parentElement && details.parentElement.closest("details"); }
     control.focus({preventScroll:true});
   }
 }
@@ -6902,7 +6935,7 @@ function regionalDeckPreferenceHTML(){
     <select class="deck-preference" id="dutchDeckPreference" aria-describedby="dutchDeckHint" onchange="setDutchDeckPreference(this.value)">
       ${[["auto","Automatic"],["show","Show"],["hide","Hide"]].map(([value,label])=>`<option value="${value}"${pref===value?' selected':''}>${label}</option>`).join("")}
     </select>
-    <div class="hint" id="dutchDeckHint">Automatic shows this deck when Dutch is one of your browser languages. Your choice is saved on this device.</div>`;
+    <div class="hint" id="dutchDeckHint">Automatic follows your browser languages. Saved on this device.</div>`;
 }
 
 /* ---------- deck resolution ---------- */
@@ -7171,11 +7204,20 @@ function playClip(card){
 // keep the equalizer honest without a full re-render
 function syncEq(){
   const eq=document.querySelector('.eq'); if(eq) eq.classList.toggle('paused', !S.playing);
+  const record=document.querySelector('.gvinyl'); if(record) record.classList.toggle('paused', !S.playing);
   const b=document.getElementById('ppBtn'); if(b) b.innerHTML = S.playing ? '❚❚&nbsp; Pause' : '▶&nbsp; Play';
+  syncPlaybackStatus();
+}
+function playbackStatus(){
+  return S.checkingTrack ? 'Checking track…' : !S.current ? 'Loading…' : S.buffering && S.playing ? 'Buffering…' : S.playing ? 'Playing' : 'Paused';
+}
+function syncPlaybackStatus(){
+  const status=document.getElementById('playbackStatus'); if(status) status.textContent=playbackStatus();
 }
 // the clip is stalling to buffer — say so, so stutter reads as "loading" not "broken"
 function syncBuffer(){
   const n=document.getElementById('bufNote'); if(n) n.classList.toggle('show', !!S.buffering && !S.checkingTrack);
+  syncPlaybackStatus();
 }
 // some iTunes previews are broken/silent — detect the load failure and move on
 let autoSkips = 0;
@@ -7636,7 +7678,7 @@ function showError(msg, retryFn){
     + (retryFn ? `<div style="margin-top:12px"><button class="btn sm" style="width:auto; display:inline-block"
          onclick="event.stopPropagation(); this.disabled=true; this.textContent='Trying…'; document.getElementById('errbar').style.display='none'; const f=window._errRetry; window._errRetry=null; if(f) f();">↻ Try again</button></div>`
        : "")
-    + `<div class="muted" style="margin-top:10px; font-size:11.5px">(tap anywhere to dismiss)</div>`;
+    + `<div class="muted" style="margin-top:10px; font-size:12px">(tap anywhere to dismiss)</div>`;
   e.style.display="block";
   window.scrollTo(0,0);
   console.error("[Yearworm]", msg);
@@ -7644,15 +7686,15 @@ function showError(msg, retryFn){
 
 function deckChipHTML(d){
   const sel = isSelected(d.id);
-  const meta = d.songs.length + " songs" + (d.desc ? " · " + d.desc : "");
-  return `<button class="dchip ${sel?'sel':''}" data-id="${d.id}" onclick="toggleDeck('${d.id}')">
+  const meta = d.desc || d.songs.length + " songs";
+  return `<button class="dchip ${sel?'sel':''}" data-id="${d.id}" aria-pressed="${sel}" onclick="toggleDeck('${d.id}')">
     <span class="de">${sel?'✓':(d.emoji||'🎵')}</span>
     <span class="dm"><span class="dn2">${esc(d.name)}</span><span class="dc2">${esc(meta)}</span></span>
   </button>`;
 }
 function deckCardHTML(d, count){
   const sel = isSelected(d.id);
-  return `<button class="deck ${sel?'sel':''}" data-id="${d.id}" onclick="toggleDeck('${d.id}')">
+  return `<button class="deck ${sel?'sel':''}" data-id="${d.id}" aria-pressed="${sel}" onclick="toggleDeck('${d.id}')">
     <span class="demoji">${sel?'✓':(d.emoji||'🎵')}</span>
     <span class="dmeta"><span class="dt">${esc(d.name)}</span><span class="dd">${esc(d.desc||'')}</span></span>
     <span class="dn">${count} songs</span>
@@ -7663,12 +7705,19 @@ function deckCardHTML(d, count){
 function tallyHTML(){
   const combined = selectedSongs().length;
   const rec = (S.players.length||1) * S.target;
-  if(!S.selectedIds.length) return `Pick one or more decks — tap to combine. Swipe sideways for more.`;
-  if(S.mode==="survival") return `<b style="color:var(--text)">${combined} songs</b> in the pool — survival pulls a fresh random run each time.`;
+  if(!S.selectedIds.length) return `Choose a deck to start.`;
+  if(S.mode==="survival") return `<b style="color:var(--text)">${combined} songs</b>`;
   return `<b style="color:var(--text)">${combined} songs</b>`
     + (combined < rec ? ` <span style="color:var(--bad)">— add another deck</span>` : ` <span style="color:var(--good)">✓</span>`);
 }
-function updateTally(){ const el=document.getElementById("deckTally"); if(el) el.innerHTML = tallyHTML(); }
+function selectedDeckSummary(){
+  const names = allDecks().filter(d=>isSelected(d.id)).map(d=>d.name);
+  return names.length ? names.join(" + ") : "Choose a deck";
+}
+function updateTally(){
+  const el=document.getElementById("deckTally"); if(el) el.innerHTML = tallyHTML();
+  const summary=document.getElementById("selectedDeckSummary"); if(summary) summary.textContent = selectedDeckSummary();
+}
 // page the decks into side-scrollable groups of 6 (2 cols × 3 rows)
 function deckCarouselHTML(){
   const decks = visibleDecks(), MAX = 6, pages = [];
@@ -7691,17 +7740,22 @@ function syncDots(){
 }
 /* ===== 4.0 lobby: renderSetup is a tab router ===== */
 function renderSetup(){
+  // Settings can rerender the lobby. Keep the user's expanded sections open.
+  const openDetails = [...document.querySelectorAll('#app details[id][open]')].map(d=>d.id);
+  const focusedId = document.activeElement && document.activeElement.id;
   // a notification tapped mid-game parked its target tab — honor it now that we're back in the lobby
   if(window._pendingTab){ _tab = window._pendingTab; _playScreen = null; window._pendingTab = null; }
   if(!S.players.length) S.players=[{name:"",timeline:[]},{name:"",timeline:[]}];   // pass & play is 2+ by nature
   const el = app();
   const inLobby = !_playScreen;
   el.classList.toggle("tabbed", !!LB.url && inLobby);
-  if(!inLobby){ el.innerHTML = configScreenHTML(_playScreen); renderPlayers(); return; }
-  if(_tab === "friends"){ el.innerHTML = friendsTabHTML() + navHTML("friends"); afterLobby("friends"); return; }
-  if(_tab === "ranks"){ el.innerHTML = ranksTabHTML() + navHTML("ranks"); afterLobby("ranks"); return; }
-  if(_tab === "profile"){ el.innerHTML = profileTabHTML() + navHTML("profile"); afterLobby("profile"); return; }
-  el.innerHTML = homeHTML() + navHTML("play"); afterLobby("play");
+  if(!inLobby){ el.innerHTML = configScreenHTML(_playScreen); renderPlayers(); }
+  else if(_tab === "friends"){ el.innerHTML = friendsTabHTML() + navHTML("friends"); afterLobby("friends"); }
+  else if(_tab === "ranks"){ el.innerHTML = ranksTabHTML() + navHTML("ranks"); afterLobby("ranks"); }
+  else if(_tab === "profile"){ el.innerHTML = profileTabHTML() + navHTML("profile"); afterLobby("profile"); }
+  else { el.innerHTML = homeHTML() + navHTML("play"); afterLobby("play"); }
+  for(const id of openDetails){ const detail=document.getElementById(id); if(detail) detail.open=true; }
+  if(focusedId && focusedId!=="app") document.getElementById(focusedId)?.focus({preventScroll:true});
 }
 // the spinning-vinyl wordmark header, shared by lobby tabs
 function lobbyHeadHTML(){
@@ -7730,8 +7784,8 @@ function challengeCardHTML(){
       } else { icon="🤝"; line=`Dead even — ${both}.`; }
       return `<div class="card" style="border-color:var(--violet)">
         <div class="eyebrow" style="color:var(--violet)">🏁 challenge result ${icon}</div>
-        <div class="muted" style="font-size:13.5px; margin-top:4px">${line}</div>
-        ${S.challenge.msgId ? `<div style="color:var(--good); font-size:12.5px; margin-top:4px">✓ Result sent back to ${esc(S.challenge.fromHandle || 'your friend')}</div>` : ``}
+        <div class="muted" style="font-size:14px; margin-top:4px">${line}</div>
+        ${S.challenge.msgId ? `<div style="color:var(--good); font-size:14px; margin-top:4px">✓ Result sent back to ${esc(S.challenge.fromHandle || 'your friend')}</div>` : ``}
         <div id="chalSetBoard"></div>
         <div class="row" style="margin-top:10px; gap:8px">
           <button class="btn sm pink" onclick="startFreshChallenge()">${ico('swords',1)} Rematch — new songs</button>
@@ -7744,7 +7798,7 @@ function challengeCardHTML(){
     return `<div class="card slim" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="border-color:var(--cyan); cursor:pointer" onclick="shareChallengeBack()">
       <div class="row" style="justify-content:space-between; align-items:center">
         <div><div class="eyebrow" style="color:var(--cyan)">${p.m ? '🎯 your challenge' : '🎯 friend challenge'}</div>
-          <div class="muted" style="font-size:13.5px; margin-top:4px">${p.m
+          <div class="muted" style="font-size:14px; margin-top:4px">${p.m
             ? `This is your own link — you set <b style="color:var(--text)">${p.s}/${RUN_LEN}</b> ⏱ ${fmtTime(p.t)}. Send it to friends!`
             : `You already played these — <b style="color:var(--text)">${p.s}/${RUN_LEN}</b> ⏱ ${fmtTime(p.t)}. One shot per song set!`}</div>
           <div id="chalSetBoard"></div></div>
@@ -7754,7 +7808,7 @@ function challengeCardHTML(){
   return `<div class="card slim" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="border-color:var(--cyan); cursor:pointer" onclick="startChallenge()">
     <div class="row" style="justify-content:space-between; align-items:center">
       <div><div class="eyebrow" style="color:var(--cyan)">🎯 friend challenge</div>
-        <div class="muted" style="font-size:13.5px; margin-top:4px">${S.challenge.beat!=null ? `Beat their <b style="color:var(--text)">${S.challenge.beat}/${RUN_LEN}</b> on the same ${RUN_LEN} songs · one shot` : `${RUN_LEN} songs, chosen by a friend · one shot`}</div>
+        <div class="muted" style="font-size:14px; margin-top:4px">${S.challenge.beat!=null ? `Beat their <b style="color:var(--text)">${S.challenge.beat}/${RUN_LEN}</b> on the same ${RUN_LEN} songs · one shot` : `${RUN_LEN} songs, chosen by a friend · one shot`}</div>
         <div id="chalSetBoard"></div></div>
       <button aria-hidden="true" tabindex="-1" class="btn sm pink" style="flex:0 0 auto">▶ Play</button>
     </div></div>`;
@@ -7762,7 +7816,7 @@ function challengeCardHTML(){
 function modeCardHTML(emoji, chipColor, title, badge, badgeCls, desc, onclick){
   return `<button class="modecard" onclick="${onclick}">
     <div class="modeicon" style="background:${chipColor}">${emoji}</div>
-    <div class="mmid"><div class="mtitle">${title} <span class="badge ${badgeCls||''}">${badge}</span></div>
+    <div class="mmid"><div class="mtitle">${title}${badge ? ` <span class="badge ${badgeCls||''}">${badge}</span>` : ``}</div>
       <div class="mdesc">${desc}</div></div>
     <div class="mchev" aria-hidden="true">›</div>
   </button>`;
@@ -7773,11 +7827,11 @@ function homeHTML(){
   const dTheme = weekTheme(dNum);
   const dailyDesc = dailyDone
     ? `Done · <b style="color:var(--text)">${dState.score}/${RUN_LEN}</b> · streak 🔥${dState.streak||1}<span id="dailyLbMini"></span>`
-    : dTheme ? `<b style="color:var(--text)">${dTheme.emoji} ${dTheme.name}</b> — ${esc(dTheme.tag)}. Same ${RUN_LEN} songs worldwide.`
-    : `Same ${RUN_LEN} songs worldwide. Streaks &amp; leaderboard.`;
+    : dTheme ? `${dTheme.emoji} ${dTheme.name} · ${RUN_LEN} songs`
+    : `${RUN_LEN} songs. A new challenge every day.`;
   const resume = hasSavedGame() ? `<div class="card" style="border-color:var(--cyan); margin-top:12px">
       <div class="eyebrow">resume</div><div style="height:8px"></div>
-      <div class="muted" style="font-size:13px; margin-bottom:10px">You have a game in progress — ${savedSummary()}.</div>
+      <div class="muted" style="font-size:14px; margin-bottom:10px">You have a game in progress — ${savedSummary()}.</div>
       <button class="btn primary" onclick="resumeSaved()">▶ Resume game</button>
       <button class="btn ghost sm" style="margin-top:8px" onclick="discardSaved()">Discard &amp; start fresh</button></div>` : ``;
   const chal = S.challenge ? `<div style="margin-top:12px">${challengeCardHTML()}</div>` : ``;
@@ -7785,21 +7839,18 @@ function homeHTML(){
   // lives inside it, so the intro paragraph would just repeat it
   const hero = (!resume && showTutHero()) ? `<div class="card" style="border-color:var(--gold); margin-top:12px">
       <div class="eyebrow">🎧 first time here?</div>
-      <div class="muted" style="font-size:13.5px; margin-top:6px">Hear a song, drop it where it belongs in time. You'll get it in three songs — one quick guided round.</div>
+      <div class="muted" style="font-size:14px; margin-top:6px">Learn the game in 3 songs.</div>
       <button class="btn primary" style="margin-top:12px" onclick="startTutorial()">▶ Play your first round</button>
     </div>` : ``;
-  const intro = (S.challenge || resume || hero) ? `` :
-    `<p class="lobby-intro">Hear a mystery track and drop it into your timeline — no exact year, just where it belongs. The line grows, the gaps shrink, every guess gets harder.</p>`;
   return `${lobbyHeadHTML()}
-    ${intro}
     <div id="chalNews"></div>
     ${chal}${resume}${hero}
     <div class="modelist">
       ${modeCardHTML(ico('cal'),'rgba(198,242,78,.16); color:#C6F24E','Daily Challenge','#'+dNum,'hot',dailyDesc, dailyDone?'shareDaily()':'startDaily()')}
-      ${modeCardHTML(ico('target'),'rgba(255,93,177,.16); color:#FF5DB1','Survival','Solo','','Endless run, 3 lives. One more song… chase your best.',"openMode('survival')")}
-      ${modeCardHTML(ico('swords'),'rgba(167,139,250,.16); color:#A78BFA','Challenges','Duel','','Challenge a friend to your 5-song gauntlet.','openChallengePicker()')}
-      ${modeCardHTML(ico('users'),'rgba(246,185,59,.16); color:#F6B93B','Pass &amp; Play','Classic','','Party mode. Pass one phone, first to the target wins.',"openMode('passplay')")}
-      ${modeCardHTML(ico('bolt'),'rgba(94,224,214,.16); color:#5EE0D6','Turbo','3 min','live','Same '+RUN_LEN+' songs, one shared line. Most correct wins.',"openMode('turbo')")}
+      ${modeCardHTML(ico('target'),'rgba(255,93,177,.16); color:#FF5DB1','Survival','','','3 lives. How far can you go?',"openMode('survival')")}
+      ${modeCardHTML(ico('swords'),'rgba(167,139,250,.16); color:#A78BFA','Challenges','','','5 songs. Set a score for a friend to beat.','openChallengePicker()')}
+      ${modeCardHTML(ico('users'),'rgba(246,185,59,.16); color:#F6B93B','Pass &amp; Play','','','One phone. First to the target wins.',"openMode('passplay')")}
+      ${modeCardHTML(ico('bolt'),'rgba(94,224,214,.16); color:#5EE0D6','Turbo','3 min','live',RUN_LEN+' songs each. Highest score wins.',"openMode('turbo')")}
     </div>
     <div class="footnote">No account needed · 30-second previews courtesy of Apple Music, all rights with their owners<br>
       <a href="mailto:contact@playyearworm.com?subject=Yearworm%20%E2%80%94%20contact%2Ftakedown">contact / takedown</a> · <a href="./privacy.html">privacy</a>${KOFI_URL ? ` · <a href="${KOFI_URL}" target="_blank" rel="noopener">☕ support</a>` : ``} · ${BUILD}</div>`;
@@ -7812,24 +7863,21 @@ function configScreenHTML(mode){
        <button class="btn iconbtn ghost" title="Edit deck" onclick="editDeck('${d.id}')">✎</button></div>`).join("");
   const title = survival ? "Survival" : turbo ? "Turbo" : "Pass & Play";
   const startLabel = survival ? "🎯 Start survival" : turbo ? "⚡ Start turbo" : "▶ Start game";
-  const music = `<div class="eyebrow" style="margin-top:4px">music</div><div style="height:10px"></div>
+  const music = `<details id="modeDeckPicker" class="disclosure deck-picker">
+      <summary><span><small>Music</small><b id="selectedDeckSummary">${esc(selectedDeckSummary())}</b></span><span class="change-deck">Change deck</span></summary>
+      <div class="hint" style="margin:0 0 10px">Tap decks to combine. Swipe for more.</div>
       ${deckCarouselHTML()}
-      <details class="regional-decks"><summary>Regional decks</summary>${regionalDeckPreferenceHTML()}</details>
+      <details id="regionalDecks" class="regional-decks"><summary>Regional decks</summary>${regionalDeckPreferenceHTML()}</details>
       ${custom ? `<div style="height:8px"></div><label class="fld">Your decks</label><div class="deck-list">${custom}</div>` : ``}
-      <div class="row" style="justify-content:space-between; align-items:center; margin-top:10px">
+      <div class="row wrap" style="justify-content:space-between; align-items:center; margin-top:10px">
         <button class="btn ghost sm" onclick="newDeck()">+ Build your own deck</button>
         <span class="hint" id="deckTally" style="margin:0">${tallyHTML()}</span>
-      </div>`;
+      </div></details>`;
   const body = survival ? `
-      <div class="hint" style="margin-top:0">3 lives — a wrong guess costs one. Go as long as you can.</div>
-      <div style="height:14px"></div>${music}
-      <div style="height:12px"></div>
-      <div class="lb2"><div class="lb2-row" style="justify-content:space-around">
-        <span class="lb2-sc" style="min-width:auto">🎯 best run · <b style="color:var(--text)">${(loadBest().cards||0)}</b> placed</span>
-        <span class="lb2-sc" style="min-width:auto">🔥 best streak · <b style="color:var(--text)">${(loadBest().streak||0)}</b></span>
-      </div></div>`
+      <div class="hint" style="margin-top:0">3 lives. How far can you go?</div>
+      <div style="height:14px"></div>${music}`
     : turbo ? `
-      <div class="hint" style="margin-top:0">Everyone places ${RUN_LEN} mystery songs on one shared timeline — every card <b>locks at its true year</b>. Highest score wins.${(loadBest().turbo)?` Solo best: <b>${loadBest().turbo}/${RUN_LEN}</b>.`:''}</div>
+      <div class="hint" style="margin-top:0">${RUN_LEN} songs each. Highest score wins.</div>
       <div class="eyebrow" style="margin-top:16px">players</div><div style="height:10px"></div>
       <div class="players-list" id="players"></div>
       <button class="btn ghost sm" style="margin-top:10px" onclick="addPlayer()">+ Add player</button>
@@ -7844,7 +7892,11 @@ function configScreenHTML(mode){
       </div>
       <div style="height:16px"></div>${music}`;
   return `<div class="screenhd"><button class="backbtn" onclick="backToLobby()" aria-label="Back">‹</button><h2>${title}</h2></div>
-    <div class="card">${body}</div>
+    <div class="card">${body}
+      <details id="setupHelp" class="disclosure"><summary>How to play</summary>
+        <p class="hint">Listen to a song, then tap a gap to place it by release year. The timeline runs oldest to newest, left to right and top to bottom.</p>
+        <p class="hint">${survival ? 'A wrong guess costs a life. The run ends after 3 mistakes.' : turbo ? `Each player gets ${RUN_LEN} songs on a shared timeline. Every song locks at its true year. Most correct wins; equal scores are decided by time.` : 'Pass the phone after each turn. Correct guesses stay on your timeline. First to the selected number of cards wins.'}</p>
+      </details></div>
     <div class="startbar"><button class="btn pink" style="font-size:16px; padding:16px" onclick="onStart()">${startLabel}</button></div>`;
 }
 function friendsTabHTML(){
@@ -7859,7 +7911,7 @@ function friendsTabHTML(){
 function ranksFriendsRows(){
   const fr = (_social && _social.friends) || [];
   const sorted = [...fr].sort((x,y)=>(((y.w|0)+(y.l|0)+(y.t|0)) - ((x.w|0)+(x.l|0)+(x.t|0))) || ((y.w|0)-(x.w|0)));
-  if(!sorted.length) return `<div class="muted" style="font-size:13.5px">${LB.url && !_social ? 'Loading…' : 'No duels yet — challenge a friend and your standings fill in here.'}</div>`;
+  if(!sorted.length) return `<div class="muted" style="font-size:14px">${LB.url && !_social ? 'Loading…' : 'No duels yet — challenge a friend and your standings fill in here.'}</div>`;
   return sorted.map(f=>{
     const w=f.w|0,l=f.l|0,t=f.t|0,any=w+l+t>0,col=!any?"var(--muted)":w>l?"var(--good)":l>w?"var(--bad)":"var(--muted)";
     return `<div class="ovrow" role="button" tabindex="0" onclick="friendDetail('${f.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" aria-label="Duel record with ${esc(f.handle)}">
@@ -7868,6 +7920,17 @@ function ranksFriendsRows(){
   }).join("");
 }
 let _boards = { daily:null, s7:null, s1:null };
+let _rankView = "daily", _rankWindow = 7;
+function setRankView(view){
+  if(!["daily","survival"].includes(view)) return;
+  _rankView=view; renderSetup(); paintRanks();
+  document.getElementById("rankView-"+view)?.focus({preventScroll:true});
+}
+function setRankWindow(days){
+  if(![1,7].includes(days)) return;
+  _rankWindow=days; renderSetup(); paintRanks();
+  document.getElementById("rankWindow-"+days)?.focus({preventScroll:true});
+}
 function paintRanks(){
   const put = (id, html) => { const el = document.getElementById(id); if(el) el.innerHTML = html; };
   if(_boards.daily) put("ranksDaily", ranksBoardHTML(_boards.daily));
@@ -7893,10 +7956,10 @@ function boardAddBtn(id, nick){
   // Show a tick for people you already have, rather than nothing: with a handful
   // of players every row IS a friend, and a blank column reads as "the button
   // never shipped" instead of "you already added them".
-  if(fr.some(f => f.id === id)) return `<span class="muted" style="font-size:11px" title="Already friends">✓</span>`;
+  if(fr.some(f => f.id === id)) return `<span class="muted" style="font-size:12px" title="Already friends">✓</span>`;
   const asked = ((_social && _social.outgoingIds) || []).includes(id);
   const incoming = ((_social && _social.requests) || []).some(q => q.id === id);
-  if(asked) return `<span class="muted" style="font-size:11px" title="Friend request sent">⏳</span>`;
+  if(asked) return `<span class="muted" style="font-size:12px" title="Friend request sent">⏳</span>`;
   return `<button class="btn ghost sm" style="font-size:12px"
     onclick="event.stopPropagation(); addFromBoard('${id}')" aria-label="${incoming ? 'Accept friend request' : 'Add as friend'}">${incoming ? '✓' : '+'}</button>`;
 }
@@ -7918,7 +7981,7 @@ async function lbFetchSurv(win){
 // longest. A day/week window resets the race and keeps a 5-player game alive —
 // which a friends-only board can't, because most players have no friends yet.
 function ranksSurvWorldHTML(b, emptyMsg){
-  if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:13.5px">${esc(emptyMsg)}</div>`;
+  if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:14px">${esc(emptyMsg)}</div>`;
   const meRank = b.me && b.me.rank;
   const rows = b.top.slice(0,10).map((t,i)=>{
     const rank = i+1, top3 = rank<=3, mine = b.me && t.nick===b.me.nick && rank===meRank;
@@ -7939,7 +8002,7 @@ function ranksSurvWorldHTML(b, emptyMsg){
       <span class="avatar sm me" aria-hidden="true">${myAvatar()}</span>
       <b style="flex:1; color:var(--gold)">You</b>
       <span class="bscore">${b.me.score}</span><span class="bactn">${ico('share',1)}</span></div>` : ``;
-  const head = `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} player${b.total===1?'':'s'} ${b.win===7?'this week':'today'}${b.me?` · you're #${meRank}`:''}</div>`;
+  const head = `<div class="muted" style="font-size:12px; margin-bottom:4px">${b.total} player${b.total===1?'':'s'} ${b.win===7?'this week':'today'}${b.me?` · you're #${meRank}`:''}</div>`;
   return head + rows + meLine;
 }
 // The friends survival card only earns its space once you HAVE friends who
@@ -7959,12 +8022,12 @@ function ranksSurvivalRows(key, emptyMsg){
   const rows = ((_social && _social.friends) || []).map(f => ({ f, handle: f.handle, best: f[key]|0 }));
   if(meVal > 0 || loadProfile()) rows.push({ me: true, handle: lbNick(), best: meVal });
   const ranked = rows.filter(r => r.best > 0).sort((a,b) => b.best - a.best);
-  if(!ranked.length) return `<div class="muted" style="font-size:13.5px">${esc(emptyMsg)}</div>`;
+  if(!ranked.length) return `<div class="muted" style="font-size:14px">${esc(emptyMsg)}</div>`;
   return ranked.map((r,i)=>`<div class="row" style="align-items:center; gap:8px; padding:7px 2px; ${i?'border-top:1px solid var(--line)':''}" ${r.me?`role="button" tabindex="0" onclick="shareSurvival(${r.best})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}" style="cursor:pointer" aria-label="Share your survival run"`:''}>
       <span style="flex:0 0 24px; text-align:center; font-family:var(--mono); font-weight:700; color:${i<3?'var(--gold)':'var(--faint)'}">${i<3?['🥇','🥈','🥉'][i]:i+1}</span>
       <span class="avatar sm ${r.me?'me':''}" aria-hidden="true">${r.me ? myAvatar() : friendAvatar(r.f)}</span>
       <b style="flex:1; min-width:0; font-size:14px; ${r.me?'color:var(--gold)':''}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(r.handle)}${r.me?' (you)':''}</b>
-      <span style="flex:0 0 auto; font-family:var(--mono); font-size:13px">${r.best}${r.me?` ${ico('share',1)}`:''}</span></div>`).join("");
+      <span style="flex:0 0 auto; font-family:var(--mono); font-size:14px">${r.best}${r.me?` ${ico('share',1)}`:''}</span></div>`).join("");
 }
 // share a "beat my survival run" taunt — survival isn't a seeded set, so it's a
 // score dare, not a same-songs link
@@ -7974,19 +8037,26 @@ function shareSurvival(score){
 function ranksTabHTML(){
   return `${lobbyHeadHTML()}
     <div class="screenhd" style="margin-top:14px"><h2>Ranks</h2></div>
-    <div class="card"><div class="eyebrow" style="color:var(--gold); margin-top:0">🌍 today's daily · worldwide</div>
-      <div id="ranksDaily" style="margin-top:10px"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play the daily to join the worldwide board.'}</div></div></div>
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · this week · worldwide</div>
-      <div style="height:8px"></div><div id="ranksSurv7"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div></div>
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:#FF5DB1; margin-top:0">${ico('target',1)} survival · today · worldwide</div>
-      <div style="height:8px"></div><div id="ranksSurvDay"><div class="muted" style="font-size:13.5px">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div></div>
-    <div id="ranksSurvFrWrap">${ranksSurvFriendsCard()}</div>
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="color:var(--cyan); margin-top:0">${ico('swords',1)} friends standings</div>
-      <div style="height:8px"></div><div id="ranksFriends">${ranksFriendsRows()}</div></div>`;
+    <div class="segmented" role="group" aria-label="Leaderboard">
+      ${[["daily","Daily"],["survival","Survival"]].map(([id,label])=>`<button id="rankView-${id}" aria-pressed="${_rankView===id}" onclick="setRankView('${id}')">${label}</button>`).join("")}
+    </div>
+    <div class="card" ${_rankView==='daily'?'':'hidden'}><div class="eyebrow" style="color:var(--gold); margin-top:0">🌍 Today's Daily · worldwide</div>
+      <div id="ranksDaily" style="margin-top:10px"><div class="muted" style="font-size:14px">${LB.url ? 'Loading…' : 'Play the daily to join the worldwide board.'}</div></div></div>
+    <div class="card" ${_rankView==='survival'?'':'hidden'}>
+      <div class="eyebrow" style="color:#FF5DB1; margin-bottom:10px">${ico('target',1)} Survival · worldwide</div>
+      <div class="segmented" role="group" aria-label="Survival period">
+        ${[[1,"Today"],[7,"This week"]].map(([days,label])=>`<button id="rankWindow-${days}" aria-pressed="${_rankWindow===days}" onclick="setRankWindow(${days})">${label}</button>`).join("")}
+      </div>
+      <div id="ranksSurv7" ${_rankWindow===7?'':'hidden'}><div class="muted hint">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div>
+      <div id="ranksSurvDay" ${_rankWindow===1?'':'hidden'}><div class="muted hint">${LB.url ? 'Loading…' : 'Play Survival to join the board.'}</div></div>
+    </div>
+    <details id="rankFriends" class="card disclosure" style="margin-top:12px"><summary>Friends standings</summary>
+      <div id="ranksFriends">${ranksFriendsRows()}</div>
+      <div id="ranksSurvFrWrap">${ranksSurvFriendsCard()}</div></details>`;
 }
 // world daily board rows from the real /daily top[]
 function ranksBoardHTML(b){
-  if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:13.5px">Play today's daily to join the worldwide board.</div>`;
+  if(!b || !(b.top && b.top.length)) return `<div class="muted" style="font-size:14px">Play today's daily to join the worldwide board.</div>`;
   const meRank = b.me && b.me.rank;
   // your own row shares the daily, exactly as the survival board shares a run —
   // same gesture in both places instead of one board being tappable and the
@@ -8009,7 +8079,7 @@ function ranksBoardHTML(b){
       <b style="flex:1; color:var(--gold)">You</b>
       <span class="bscore">${b.me.score}/${RUN_LEN}</span><span class="bactn">${canShare?ico('share',1):''}</span></div>` : ``;
   const pct = b.me && b.total ? Math.max(1, Math.round(meRank / b.total * 100)) : null;
-  return `<div class="muted" style="font-size:11.5px; margin-bottom:4px">${b.total} played today${b.me?` · you're #${meRank}${pct?` · top ${pct}%`:``}`:''}</div>${rows}${meLine}`;
+  return `<div class="muted" style="font-size:12px; margin-bottom:4px">${b.total} played today${b.me?` · you're #${meRank}${pct?` · top ${pct}%`:``}`:''}</div>${rows}${meLine}`;
 }
 // a few achievements computed from REAL local + social data (no fake progress)
 function achievementsList(){
@@ -8062,12 +8132,14 @@ function achievementsList(){
 function achievementsHTML(){
   const A = achievementsList();
   const unlocked = A.filter(a=>a.done).length;
-  const grid = `<div class="achgrid">` + A.map(a=>`<button class="ach ${a.done?'done':''}" type="button"
+  const items = list => `<div class="achgrid">` + list.map(a=>`<button class="ach ${a.done?'done':''}" type="button"
       onclick="toast('${esc(a.name)} — ${esc(a.desc)}')" aria-label="${esc(a.name)}: ${esc(a.desc)}${a.done?' (unlocked)':''}">
       <span class="aicon" aria-hidden="true">${a.icon}</span>
       <span class="aname">${a.name}</span>
       <span class="aprog">${a.done?'✓':(a.prog||'—')}</span>
     </button>`).join("") + `</div>`;
+  const featured = [...A.filter(a=>a.done).reverse(), ...A.filter(a=>!a.done)].slice(0,3);
+  const grid = items(featured) + `<details id="allAchievements" class="disclosure"><summary>View all achievements</summary>${items(A)}</details>`;
   return { grid, label:`Achievements · ${unlocked}/${A.length}` };
 }
 /* "Achievement unlocked" popup — diff the done-set against what the player has
@@ -8117,37 +8189,41 @@ function profileTabHTML(){
       </div>
     </div>
     <div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">your stats</div><div style="height:12px"></div>
-      <div class="statgrid">${(l=>`${stat(l.games|0,'Games')}${stat(l.cards|0,'Cards placed')}${stat('🔥&#8202;'+(d.streak||0),'Daily streak')}${stat(best.streak||0,'Best streak')}${stat(best.cards||0,'Survival')}${stat(best.turbo||0,'Turbo best')}`)(loadLife())}</div></div>
+      <div class="statgrid">${stat('🔥&#8202;'+(d.streak||0),'Daily streak')}${stat(best.cards||0,'Survival best')}${stat(best.turbo||0,'Turbo best')}${stat(loadLife().games|0,'Games')}</div>
+      <details id="moreStats" class="disclosure"><summary>More stats</summary><div class="statgrid">${stat(loadLife().cards|0,'Cards placed')}${stat(best.streak||0,'Best streak')}</div></details></div>
     ${recentGamesHTML()}
     ${(()=>{ const a=achievementsHTML(); return `<div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">${a.label}</div><div style="height:6px"></div>${a.grid}</div>`; })()}
+    <details id="profileSettings" class="card disclosure settings"><summary>Settings</summary>
     ${(()=>{ const on = pushEnabled(), why = pushBlockReason();
       // NEVER hide this card: on an iPhone in a Safari tab the push API is
       // absent, and silently dropping the row makes it look like the feature
       // vanished instead of telling the player how to get it.
-      return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
+      return `<div class="setting-row"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('bell',1)} Notifications</div>
-        <div class="muted" style="font-size:11.5px; margin-top:2px">${why ? esc(why) : (on ? 'On — challenges, new friends &amp; plays' : 'Get pinged when a friend challenges you, adds you, or plays your set')}</div></div>
-      ${why ? `` : `<button class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="togglePush()">${on ? 'Turn off' : 'Turn on'}</button>`}
+        <div class="muted" style="font-size:14px; margin-top:2px">${why ? esc(why) : 'Friend and challenge updates'}</div></div>
+      ${why ? `` : `<button id="pushToggle" class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="togglePush()">${on ? 'Turn off' : 'Turn on'}</button>`}
     </div>${on ? `<div class="row" style="justify-content:space-between; align-items:center; gap:10px; margin-top:10px">
-      <div class="muted" style="font-size:11.5px; min-width:0">Not getting them? Send one to this device.</div>
+      <div class="muted" style="font-size:14px; min-width:0">Test this device</div>
       <button id="pushTestBtn" class="btn sm ghost" style="flex:0 0 auto" onclick="testPush()">Send test</button>
-    </div><div id="pushTestOut" class="muted" style="display:none; font-size:11.5px; margin-top:8px; line-height:1.45"></div>` : ``}</div>`; })()}
-    <div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">Regional decks</div>
-      <div style="height:10px"></div>${regionalDeckPreferenceHTML()}</div>
-    ${(()=>{ const cur = chalDeckId(); return `<div class="card" style="margin-top:12px">
+    </div><div id="pushTestOut" class="muted" style="display:none; font-size:12px; margin-top:8px; line-height:1.45"></div>` : ``}</div>`; })()}
+    <details id="musicSettings" class="disclosure setting-row"><summary>Music preferences</summary>
+      <div class="eyebrow" style="margin-bottom:10px">Regional decks</div>${regionalDeckPreferenceHTML()}
+    ${(()=>{ const cur = chalDeckId(); return `<div style="margin-top:20px">
       <div style="font-weight:700; font-size:14px">${ico('swords',1)} Challenge songs</div>
-      <div class="muted" style="font-size:11.5px; margin-top:2px">The deck your outgoing challenges &amp; duels draw from — your friend plays the same 5 songs.</div>
+      <div class="hint" style="margin-top:2px">Your outgoing challenges use this deck.</div>
       <div class="row" style="gap:6px; flex-wrap:wrap; margin-top:10px" id="chalDeckRow">
-        ${visibleDecks().map(d=>`<button class="btn sm ${d.id===cur?'primary':''}" data-deck="${d.id}" onclick="setChalDeck('${d.id}')">${d.id===cur?'✓ ':''}${esc(d.name)}</button>`).join("")}
+        ${visibleDecks().map(d=>`<button id="chalDeck-${d.id}" class="btn sm ${d.id===cur?'primary':''}" data-deck="${d.id}" aria-pressed="${d.id===cur}" onclick="setChalDeck('${d.id}')">${d.id===cur?'✓ ':''}${esc(d.name)}</button>`).join("")}
       </div></div>`; })()}
-    ${(()=>{ const on = sfxEnabled(); return `<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
+    </details>
+    ${(()=>{ const on = sfxEnabled(); return `<div class="setting-row"><div class="row" style="justify-content:space-between; align-items:center; gap:10px">
       <div style="min-width:0"><div style="font-weight:700; font-size:14px">${ico('vol',1)} Sound effects</div>
-        <div class="muted" style="font-size:11.5px; margin-top:2px">${on ? 'On — little dings for placements & finishes' : 'Off — placements are silent'}</div></div>
-      <button class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="toggleSfx()">${on ? 'Turn off' : 'Turn on'}</button>
+        </div>
+      <button id="sfxToggle" class="btn sm ${on ? 'ghost' : 'primary'}" style="flex:0 0 auto" onclick="toggleSfx()">${on ? 'Turn off' : 'Turn on'}</button>
     </div></div>`; })()}
-    ${GAUTH.clientId ? `<div class="card" style="margin-top:12px"><div class="eyebrow" style="margin-top:0">account</div><div style="height:8px"></div>
-      <div class="muted" style="font-size:12.5px">${prof && prof.linked ? '✓ Google-linked — your name &amp; friends survive a new phone' : '🔐 Link Google so your account survives a new phone:'}</div>
-      ${prof && prof.linked ? `` : `<div id="gsiBtn" style="margin-top:8px"></div>`}</div>` : ``}
+    ${GAUTH.clientId ? `<details id="accountSettings" class="disclosure setting-row" ontoggle="if(this.open)mountGoogleBtn()"><summary>Account${prof && prof.linked ? ' · Google linked' : ''}</summary>
+      <div class="hint" style="margin-top:0">${prof && prof.linked ? 'Your name and friends are linked to Google.' : 'Link Google to keep your name and friends on a new phone.'}</div>
+      ${prof && prof.linked ? `` : `<div id="gsiBtn" style="margin-top:8px"></div>`}</details>` : ``}
+    </details>
     <div class="footnote">No account needed · 30-second previews courtesy of Apple Music, all rights with their owners<br>
       <a href="mailto:contact@playyearworm.com?subject=Yearworm%20%E2%80%94%20contact%2Ftakedown">contact / takedown</a> · <a href="./privacy.html">privacy</a>${KOFI_URL ? ` · <a href="${KOFI_URL}" target="_blank" rel="noopener">☕ support</a>` : ``} · ${BUILD}</div>`;
 }
@@ -8243,7 +8319,7 @@ function renderBuilder(){
     </div>
     <button class="btn pink" style="margin-top:16px; padding:16px" onclick="saveBuilder()">Save deck</button>
     ${b.id ? `<button class="btn ghost" style="margin-top:10px; color:var(--bad)" onclick="deleteDeck()">🗑 Delete this deck</button>` : ``}
-    <div class="footnote"><a href="#" onclick="startVerify();return false;" style="font-size:11px">🕵 check deck years vs Apple</a></div>
+    <div class="footnote"><a href="#" onclick="startVerify();return false;" style="font-size:12px">🕵 check deck years vs Apple</a></div>
   `;
 }
 function deleteDeck(){
@@ -8351,7 +8427,7 @@ function renderGame(){
     : run
     ? (S.players.length>1
       ? `<div class="lb2"><div class="lb2-row me" style="justify-content:space-between; gap:8px">
-           <span style="flex:1; font-size:13px">${S.players.map((pl,i)=>`<span style="color:${ownerColor(i)}; font-weight:700; margin-right:10px">● ${esc(pl.name)} ${pl.hits||0}/${RUN_LEN}</span>`).join("")}</span>
+           <span style="flex:1; font-size:14px">${S.players.map((pl,i)=>`<span style="color:${ownerColor(i)}; font-weight:700; margin-right:10px">● ${esc(pl.name)} ${pl.hits||0}/${RUN_LEN}</span>`).join("")}</span>
            <span class="lb2-sc" style="flex:0 0 auto">song ${Math.min((p.tries||0)+1, RUN_LEN)}/${RUN_LEN}</span>
          </div></div>`
       : `<div class="lb2"><div class="lb2-row me" style="justify-content:space-between; gap:8px">
@@ -8363,8 +8439,8 @@ function renderGame(){
   app().innerHTML = `
     <div class="topbar">
       <div>
-        <div class="eyebrow">${survival ? 'survival · solo' : S.mode==="daily" ? 'daily challenge #'+dailyNumber()+((w=>w?' · '+w.name.toLowerCase():'')(weekTheme(S.dailyNum||dailyNumber()))) : S.mode==="challenge" ? 'friend challenge' : tut ? 'your first round' : run ? 'turbo' : 'now placing'}</div>
-        <div class="turn-name">${survival ? 'Keep the run alive' : run ? (S.players.length>1 ? esc(p.name) : 'Lock it in') : esc(p.name)}</div>
+        ${S.mode==='daily' ? `<div class="eyebrow">${esc((weekTheme(S.dailyNum||dailyNumber())||{}).name||'Daily challenge')}</div>` : S.players.length>1 ? `<div class="eyebrow">${run?'Turbo':'Pass &amp; Play'} · your turn</div>` : ``}
+        <div class="turn-name">${survival ? 'Survival' : S.players.length>1 ? esc(p.name) : S.mode==='daily' ? 'Daily #'+(S.dailyNum||dailyNumber()) : S.mode==='challenge' ? 'Challenge' : tut ? 'Your first round' : 'Turbo'}</div>
       </div>
       <button class="btn sm ghost" onclick="confirmQuit()">Quit</button>
     </div>
@@ -8373,12 +8449,9 @@ function renderGame(){
     <div class="stage" style="margin-top:14px">
       ${S.checkingTrack ? `` : `<div class="gvinyl ${S.playing?'':'paused'}" aria-hidden="true"><span class="glabel"></span></div>`}
       <div class="eq ${vizEnabled?'viz':''} ${S.playing?'':'paused'}"><span></span><span></span><span></span><span></span><span></span></div>
-      <h2>${S.checkingTrack ? 'Checking track…' : (live ? 'Mystery track is playing' : '…')}</h2>
-      <p>${S.checkingTrack ? (S.checkMessage || 'We’re checking the result now.')
-          : (tut && (p.tries||0)===0 && live && tl[0]) ? `Does it sound <b>older</b> or <b>newer</b> than <b style="color:var(--gold)">${tl[0].year}</b>? Tap a gap on the line below 👇`
-          : 'Listen, then drop it into your timeline where it belongs.'}</p>
-      ${S.checkingTrack ? `<div class="verify-state">still checking</div>` : ''}
-      <div id="bufNote" class="bufnote ${S.buffering && !S.checkingTrack ?'show':''}">buffering…</div>
+      <h2 id="playbackStatus" role="status">${playbackStatus()}</h2>
+      ${S.checkingTrack && S.checkMessage ? `<p>${esc(S.checkMessage)}</p>` : ``}
+      ${(tut && (p.tries||0)===0 && live && tl[0] && !S.checkingTrack) ? `<p>Older or newer than <b style="color:var(--gold)">${tl[0].year}</b>? Tap a gap below.</p>` : ``}
     </div>
 
     <div class="controls">
@@ -8386,9 +8459,12 @@ function renderGame(){
     </div>
 
     <div style="height:18px"></div>
-    <p class="tl-label">${run ? (S.players.length>1 ? 'Shared timeline' : 'Your timeline') : survival ? 'Your timeline' : esc(p.name)+'’s timeline'} — tap a gap to place</p>
+    <p class="tl-label">${run ? (S.players.length>1 ? 'Shared timeline' : 'Your timeline') : survival ? 'Your timeline' : esc(p.name)+'’s timeline'}</p>
     ${tl.length? `<div class="timeline ${tut && (p.tries||0)===0 && live ? 'tutpulse' : ''}">${slotsHTML}</div>` : `<div class="empty-tl">No cards yet.</div>`}
-    <div class="footnote">Oldest first · reads left → right, top → bottom</div>
+    <details class="disclosure"><summary>How to play</summary>
+      <p class="hint">Listen, then tap a gap to place the song by release year. Read the timeline oldest to newest, left to right and top to bottom.</p>
+      ${run ? `<p class="hint">Every song locks at its true year. You score a point for each correct placement.</p>` : ``}
+    </details>
   `;
 }
 
@@ -8412,7 +8488,7 @@ async function recheckOverlay(){
 // data-correction is collapsed and saves for NEXT time only — it can't flip a result
 function flagBlockHTML(id, year){
   return `<details class="report-yr"><summary>🚩 Something wrong with this card?</summary>
-        <div class="year-fix" style="margin-top:8px;"><span class="muted" style="font-size:11px">correct year</span>
+        <div class="year-fix" style="margin-top:8px;"><span class="muted" style="font-size:12px">correct year</span>
           <input class="rev-yr" type="number" inputmode="numeric" value="${year}"
             onchange="saveYear('${id}', this.value); toast('Thanks — fixed for next time.')" /></div>
         ${REPORT.url ? `<button class="btn ghost sm" style="margin-top:8px" onclick="reportYear('${id}', ${year})">${ico('share',1)} Report this fix so everyone gets it</button>` : ``}
@@ -8460,7 +8536,7 @@ function overlayReveal(correct, p){
       ? ((p.tries||0) === 1
           ? (correct ? "Nailed it — every song locks onto the line at its true year." : "No stress — it locks at its true year anyway, and the line grows.")
           : "The line grows, the gaps get tighter — that's where it gets fun.")
-      : `${correct ? 'Locked in place' : 'Locked at its true spot'} · song ${p.tries||0}/${runLen} · score ${p.hits||0}`;
+      : `Song ${p.tries||0}/${runLen} · score ${p.hits||0}`;
     const allDone = S.players.every(pl => (pl.tries||0) >= RUN_LEN);
     let nxtName = null;
     if(!allDone && S.players.length>1){
@@ -8484,14 +8560,14 @@ function overlayReveal(correct, p){
     var extra = flagBlock;
   }
   sheet.innerHTML = `
-    <div class="verdict ${correct?'good':'bad'}">${correct?'✓ NICE!':'✗ NOPE'}</div>
-    <div class="muted" style="font-size:13px">${sub}</div>
+    <div class="verdict ${correct?'good':'bad'}">${correct?'✓ Correct':'✗ Not quite'}</div>
+    <div class="muted" style="font-size:14px">${sub}</div>
     <div class="reveal-yr" style="color:${correct?'var(--good)':'var(--bad)'}">${c.year}</div>
     <div class="reveal-ti">${esc(c.name)}</div>
     <div class="reveal-ar">${esc(c.artist)}</div>
     ${c.view ? `<div><a href="${esc(c.view)}" target="_blank" rel="noopener"
         style="font-size:12px; color:var(--muted); display:inline-block; padding:10px 8px 6px">🎵 Open in Apple Music</a></div>` : ``}
-    ${missHint ? `<div style="font-size:13.5px; color:var(--cyan); margin-top:8px; font-weight:600">↳ belonged ${missHint}</div>` : ``}
+    ${missHint ? `<div style="font-size:14px; color:var(--cyan); margin-top:8px; font-weight:600">↳ belonged ${missHint}</div>` : ``}
     ${extra}
     <button class="btn primary" style="margin-top:14px" onclick="advance()">${btn}</button>
   `;
@@ -8516,7 +8592,7 @@ function overlayGameOver(deckEmpty, winner){
       <div class="winner-emoji">🎯</div>
       <div class="verdict ${newBest?'good':'bad'}" style="margin-top:6px">RUN OVER</div>
       <div style="font-size:14px; margin:10px 0 2px">You placed <b style="font-size:20px; color:var(--good)">${S.score}</b> song${S.score===1?'':'s'}${deckEmpty?' (deck ran dry)':''}</div>
-      <div class="muted" style="font-size:13px; margin-bottom:10px">Best streak this run: <b style="color:var(--text)">${S.bestStreak}</b></div>
+      <div class="muted" style="font-size:14px; margin-bottom:10px">Best streak this run: <b style="color:var(--text)">${S.bestStreak}</b></div>
       ${newBest?`<div style="color:var(--good); font-weight:700; font-size:15px; margin:8px 0">🎉 New personal best!</div>`:``}
       <div class="muted" style="font-size:12px; margin-bottom:16px">All-time best · ${nb.cards} placed · ${nb.streak} streak</div>
       <button class="btn pink" onclick="playAgain()">Play again</button>
@@ -8591,7 +8667,7 @@ function overlayRunOver(){
     sheet.innerHTML = `
       <div class="winner-emoji">⚡</div>
       <div class="verdict good" style="margin-top:6px">${esc(top.name)} WINS</div>
-      ${tieBroken ? `<div class="muted" style="font-size:13.5px; margin-top:4px">tie — fastest time decides ⏱</div>` : ``}
+      ${tieBroken ? `<div class="muted" style="font-size:14px; margin-top:4px">tie — fastest time decides ⏱</div>` : ``}
       ${lastLine}
       <div style="margin:14px 0 16px">${rows}</div>
       ${last ? flagBlockHTML(last.id, last.year) : ``}
@@ -8613,19 +8689,17 @@ function overlayRunOver(){
   // a partial record (p:1, written per-placement for one-shot sets) is finalized here
   const exChal = chalPlayed(setIdx);
   if(setIdx && setIdx.length>=2 && (!exChal || exChal.p)) recordChal(setIdx, score, me.timeMs||0, mine, daily);
-  let streakLine = "", title = 'TURBO RUN', duelWon = false;
+  let streakLine = "", title = 'Turbo', duelWon = false;
   if(daily){
-    title = 'DAILY #'+(S.dailyNum || dailyNumber());
+    title = 'Daily #'+(S.dailyNum || dailyNumber());
     recordRunProgress();   // final write (all placements done → no p flag)
     const dTh = weekTheme(S.dailyNum || dailyNumber());
-    const nTh = weekTheme((S.dailyNum || dailyNumber()) + 7);
-    streakLine = `${dTh ? `<div class="muted" style="font-size:12.5px; margin-top:2px">${dTh.emoji} ${dTh.name}</div>` : ``}
-      <div style="font-size:15px; margin:6px 0 2px">🔥 streak · <b>${loadDaily().streak||1}</b> day${(loadDaily().streak||1)===1?'':'s'}</div>
-      ${nTh ? `<div class="muted" style="font-size:11.5px; margin-top:2px">next week: ${nTh.emoji} ${nTh.name}</div>` : ``}`;
+    streakLine = `${dTh ? `<div class="muted" style="font-size:14px; margin-top:2px">${dTh.emoji} ${dTh.name}</div>` : ``}
+      <div style="font-size:15px; margin:6px 0 2px">🔥 <b>${loadDaily().streak||1}</b> day streak</div>`;
     logFeed({ k:"daily", n: S.dailyNum || dailyNumber(), s: score, streak: loadDaily().streak||1 });
     bumpLife("dailies");
   } else if(chal){
-    title = 'CHALLENGE';
+    title = 'Challenge';
     const beat = S.challenge && S.challenge.beat;
     const beatT = S.challenge && S.challenge.beatTime;
     const myT = me.timeMs||0;
@@ -8645,11 +8719,11 @@ function overlayRunOver(){
       const oppName = (S.reactTo && S.reactTo.handle) || (S.challenge && S.challenge.fromHandle) || "them";
       const oppF = S.reactTo && _social && _social.friends && _social.friends.find(f => f.id === S.reactTo.user);
       streakLine = `<div style="display:flex; align-items:center; justify-content:center; gap:16px; margin:10px 0 2px">
-        <div style="text-align:center"><span class="avatar me" aria-hidden="true">${myAvatar()}</span><div class="muted" style="font-size:10.5px; margin-top:3px">you</div></div>
-        <div style="font-family:'Anton'; font-size:38px; letter-spacing:2px; color:${vcol}">${score} – ${beat}</div>
-        <div style="text-align:center"><span class="avatar" aria-hidden="true">${oppF ? friendAvatar(oppF) : avat(oppName)}</span><div class="muted" style="font-size:10.5px; margin-top:3px; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(oppName)}</div></div>
+        <div style="text-align:center"><span class="avatar me" aria-hidden="true">${myAvatar()}</span><div class="muted" style="font-size:12px; margin-top:3px">you</div></div>
+        <div style="font-family:var(--ui); font-weight:700; font-size:38px; letter-spacing:2px; color:${vcol}">${score} – ${beat}</div>
+        <div style="text-align:center"><span class="avatar" aria-hidden="true">${oppF ? friendAvatar(oppF) : avat(oppName)}</span><div class="muted" style="font-size:12px; margin-top:3px; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(oppName)}</div></div>
       </div>
-      <div style="color:${vcol}; font-weight:800; font-size:15px; margin:2px 0 6px">${verdict}</div>`;
+      <div style="color:${vcol}; font-weight:700; font-size:15px; margin:2px 0 6px">${verdict}</div>`;
     }
     // inbox challenge: record the duel server-side (first report stands) —
     // this also drops a "they played it" message in the challenger's inbox.
@@ -8680,8 +8754,8 @@ function overlayRunOver(){
     sendChal(S.chalTarget.user, chalKey(setIdx), score, me.timeMs||0);
     sentLine = `<div style="margin:12px auto 4px; max-width:320px; padding:12px 14px; border-radius:14px; background:rgba(94,224,214,.10); border:1px solid rgba(94,224,214,.35)">
       <div style="font-size:24px" aria-hidden="true">⚔️</div>
-      <div style="font-weight:800; font-size:16px; color:var(--cyan); margin-top:2px">Challenge sent to ${esc(S.chalTarget.handle)}!</div>
-      <div class="muted" style="font-size:12.5px; margin-top:3px">You set <b style="color:var(--text)">${score}/${RUN_LEN}</b> to beat — you'll hear about it when they play.</div>
+      <div style="font-weight:700; font-size:16px; color:var(--cyan); margin-top:2px">Challenge sent to ${esc(S.chalTarget.handle)}!</div>
+      <div class="muted" style="font-size:14px; margin-top:3px">You set <b style="color:var(--text)">${score}/${RUN_LEN}</b> to beat — you'll hear about it when they play.</div>
     </div>`;
   }
   // pass-on data for openPassOnSheet (one button instead of a row of friend chips)
@@ -8692,31 +8766,31 @@ function overlayRunOver(){
     <div class="winner-emoji">${perfect ? '🏆' : daily ? '📅' : chal ? '🎯' : '⚡'}</div>
     <div class="verdict ${score>=3?'good':'bad'}" style="margin-top:6px">${title}</div>
     ${isDuel ? streakLine : `<div class="reveal-yr" style="font-size:54px; margin:8px 0 2px; color:${score>=3?'var(--good)':'var(--bad)'}">${score}/${RUN_LEN}</div>`}
-    <div style="font-size:20px; letter-spacing:3px; margin:6px 0">${squares(me)} <span class="muted" style="font-size:13px; letter-spacing:0">· ⏱ ${fmtTime(me.timeMs)}</span></div>
+    <div style="font-size:20px; letter-spacing:3px; margin:6px 0">${squares(me)} <span class="muted" style="font-size:14px; letter-spacing:0">· ⏱ ${fmtTime(me.timeMs)}</span></div>
     ${(solo && S.runLog && S.runLog.length) ? `<details style="margin:8px auto 2px; max-width:320px">
       <summary class="muted" style="cursor:pointer; font-size:12px; list-style-position:inside">Show the songs</summary>
       <div id="runRecap" style="margin-top:6px; text-align:left">
-      ${S.runLog.map(r=>`<div style="display:flex; gap:8px; align-items:center; font-size:12.5px; padding:3px 0">
+      ${S.runLog.map(r=>`<div style="display:flex; gap:8px; align-items:center; font-size:14px; padding:3px 0">
         <span aria-hidden="true">${r.ok?'🟩':'🟥'}</span>
         <b style="font-family:var(--mono); flex:0 0 auto">${r.year}</b>
         <span class="muted" style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(r.name)} — ${esc(r.artist)}</span>
       </div>`).join("")}
       ${chal && LB.url ? `<div id="chalBoard"></div>` : ``}</div></details>` : ``}
-    ${lastLine}
+    ${S.runLog && S.runLog.length ? `` : lastLine}
     ${isDuel ? `` : streakLine}
     ${sentLine}
     ${(!chal && !daily && canChallenge) && LB.url ? `<div id="chalBoard"></div>` : ``}
     ${daily && LB.url ? `<div id="lbline" style="font-size:14px; margin:6px 0">🌍 …</div>` : ``}
     ${last ? flagBlockHTML(last.id, last.year) : ``}
     ${(rt => rt ? `
-      <div class="muted" style="font-size:12px; margin-top:12px">react to <b>${esc(rt.handle)}</b>:</div>
-      <div class="row" style="gap:6px; justify-content:center; margin-top:6px" id="reactRow">
+      <details class="disclosure"><summary>React to ${esc(rt.handle)}</summary>
+      <div class="row wrap" style="gap:6px; justify-content:center; margin-top:6px" id="reactRow">
         ${REACT_EMOJI.slice(0,6).map(e=>`<button class="btn sm" onclick="sendReact('${rt.user}','${e}',${score}); document.querySelectorAll('#reactRow button, #reactMore button').forEach(b=>b.disabled=true); this.style.borderColor='var(--gold)'">${e}</button>`).join("")}
         <button class="btn sm" aria-label="More reactions" onclick="document.getElementById('reactMore').style.display='flex'; this.style.display='none'">…</button>
       </div>
       <div class="row" id="reactMore" style="display:none; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:6px">
         ${REACT_EMOJI.slice(6).map(e=>`<button class="btn sm" onclick="sendReact('${rt.user}','${e}',${score}); document.querySelectorAll('#reactRow button, #reactMore button').forEach(b=>b.disabled=true); this.style.borderColor='var(--gold)'">${e}</button>`).join("")}
-      </div>` : ``)(reactTarget())}
+      </div></details>` : ``)(reactTarget())}
     ${isInboxDuel ? `<div style="color:var(--good); font-weight:700; font-size:14px; margin:12px 0 2px">✓ Result sent back to ${esc(S.challenge.fromHandle || 'your friend')}</div>` : ``}
     ${daily ? `<button class="btn pink" style="margin-top:14px" onclick="shareDaily()">${ico('swords',1)} Challenge friends</button>` : ``}
     ${isInboxDuel ? `<div class="row" style="gap:8px; margin-top:12px">
@@ -8761,12 +8835,12 @@ async function dailyShareCanvas(d){
   const W = 1080, H = 1080;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const x = cv.getContext("2d"); if(!x) return null;
-  try{ await Promise.all([document.fonts.load('900 72px Rubik'), document.fonts.load('700 27px Rubik'),
-    document.fonts.load('600 36px Rubik'), document.fonts.load('400 27px "DM Mono"'), document.fonts.load('400 172px Anton')]); }catch(e){}
+  try{ await Promise.all([document.fonts.load('900 72px Rubik'), document.fonts.load('700 27px "DM Sans"'),
+    document.fonts.load('600 36px "DM Sans"'), document.fonts.load('400 27px "DM Sans"'), document.fonts.load('700 156px "DM Sans"')]); }catch(e){}
   // Composed from the APP'S OWN components — header lockup, a real .card
   // surface, eyebrow type, tiles, the cyan action button — so the share reads
   // as "a piece of the game", not a separate poster. FOUR type sizes only
-  // (27 / 36 / 72 / 172): small-caps meta, body, wordmark, and one hero score.
+  // (27 / 36 / 72 / 156): metadata, body, wordmark, and one hero score.
   // The header runs at ~1.8× the 440px layout while the card keeps the app's
   // ~2.45×, so the RESULT — not the brand — is the undisputed hero.
   const bg = x.createLinearGradient(0,0,0,H); bg.addColorStop(0,"#0D1526"); bg.addColorStop(1,"#0B1120");
@@ -8789,7 +8863,7 @@ async function dailyShareCanvas(d){
   g = x.createLinearGradient(tx,0,tx+wordW,0); g.addColorStop(0,"#F6B93B"); g.addColorStop(1,"#5EE0D6");
   x.fillStyle = g; x.fillText("Yearworm", tx, hy+26);
   x.textAlign = "center";
-  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Mono", monospace';
+  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Sans", sans-serif';
   try{ x.letterSpacing = "6px"; }catch(e){}
   x.fillText("GUESS THE YEAR · BUILD THE LINE", W/2 + 3, hy+90);   // +3 rebalances the trailing letterspace
   try{ x.letterSpacing = "0px"; }catch(e){}
@@ -8802,12 +8876,12 @@ async function dailyShareCanvas(d){
   x.beginPath(); x.roundRect(cardX, cardY, cardW, cardH, 44); x.stroke();
   // eyebrow, exactly the app's daily card: 11px→27, .14em spacing, gold
   const wTh = weekTheme(d.num || dailyNumber());
-  x.fillStyle = "#F6B93B"; x.font = "700 27px Rubik, sans-serif";
+  x.fillStyle = "#F6B93B"; x.font = '700 27px "DM Sans", sans-serif';
   try{ x.letterSpacing = "4px"; }catch(e){}
   x.fillText("DAILY CHALLENGE #" + (d.num||dailyNumber()) + (wTh ? " · " + wTh.emoji + " " + wTh.name.toUpperCase() : ""), W/2 + 2, cardY + 96);
   try{ x.letterSpacing = "0px"; }catch(e){}
-  // the score — the single hero of the card, Anton like the duel scoreline
-  x.fillStyle = "#EEF2FF"; x.font = "400 172px Anton, Rubik, sans-serif";
+  // the score — the largest type on the card
+  x.fillStyle = "#EEF2FF"; x.font = '700 156px "DM Sans", sans-serif';
   x.fillText((d.score||0) + "/" + RUN_LEN, W/2, cardY + 288);
   // result tiles
   const res = (d.results||[]).slice(0, RUN_LEN), n = Math.max(res.length, RUN_LEN);
@@ -8817,16 +8891,16 @@ async function dailyShareCanvas(d){
     x.beginPath(); x.roundRect(x0 + i*(sq+gap), ty, sq, sq, 16); x.fill();
   }
   // streak + time, in the results sheet's own words
-  x.fillStyle = "#B9C6EA"; x.font = "600 36px Rubik, sans-serif";
+  x.fillStyle = "#B9C6EA"; x.font = '600 36px "DM Sans", sans-serif';
   x.fillText("🔥 streak · " + (d.streak||1) + " day" + ((d.streak||1)===1?"":"s") + (d.timeMs ? "    ·    ⏱ " + fmtTime(d.timeMs) : ""), W/2, cardY + 488);
   // the app's cyan action button, verbatim (bg cyan, dark text, darker bottom edge)
   const bw = 640, bh = 96, bx = W/2 - bw/2, by = cardY + 532;
   x.fillStyle = "#3FA8C6"; x.beginPath(); x.roundRect(bx, by+6, bw, bh, 28); x.fill();
   x.fillStyle = "#5EE0D6"; x.beginPath(); x.roundRect(bx, by, bw, bh-6, 28); x.fill();
-  x.fillStyle = "#00303F"; x.font = "800 36px Rubik, sans-serif";
+  x.fillStyle = "#00303F"; x.font = '700 36px "DM Sans", sans-serif';
   x.fillText("Beat me on the same songs", W/2, by + 58);
   // footnote, app-style, centered in the bottom band
-  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Mono", monospace';
+  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Sans", sans-serif';
   x.fillText("playyearworm.com · free · no app needed", W/2, 1032);
   return cv;
 }
@@ -8956,10 +9030,10 @@ function overlayTutOver(){
   sheet.innerHTML = `
     <div class="winner-emoji">🎓</div>
     <div class="verdict good" style="margin-top:2px">THAT'S YEARWORM!</div>
-    ${last ? `<div class="muted" style="font-size:12.5px; margin-top:6px">last song: <b style="color:${last.correct?'var(--good)':'var(--bad)'}">${last.correct?'✓':'✗'} ${last.year}</b> — ${esc(last.name)} · ${esc(last.artist)}</div>` : ``}
+    ${last ? `<div class="muted" style="font-size:14px; margin-top:6px">last song: <b style="color:${last.correct?'var(--good)':'var(--bad)'}">${last.correct?'✓':'✗'} ${last.year}</b> — ${esc(last.name)} · ${esc(last.artist)}</div>` : ``}
     <div style="font-size:19px; letter-spacing:2px; margin:10px 0 2px">${sq}</div>
     <div style="font-size:14px; margin:6px 0 2px">You placed <b style="color:var(--good)">${me.hits||0}/${TUT_LEN}</b> — and that's the whole game.</div>
-    <div class="muted" style="font-size:13px; margin:10px 4px 2px">Every mode is this loop with a twist. The <b style="color:var(--text)">Daily</b> is the same ${RUN_LEN} songs for the whole world, once a day — start your streak:</div>
+    <div class="muted" style="font-size:14px; margin:10px 4px 2px">Every mode is this loop with a twist. The <b style="color:var(--text)">Daily</b> is the same ${RUN_LEN} songs for the whole world, once a day — start your streak:</div>
     <button class="btn primary" style="margin-top:14px" onclick="closeOverlay(); startDaily()">${ico('cal',1)} Play today's Daily</button>
     <button class="btn ghost" style="margin-top:8px" onclick="backToSetup()">Explore the modes</button>`;
   showSheet();
@@ -9031,6 +9105,7 @@ function toggleDeck(id){
   const d = allDecks().find(x => x.id===id);
   document.querySelectorAll('[data-id="'+id+'"]').forEach(el=>{
     el.classList.toggle("sel", sel);
+    el.setAttribute("aria-pressed", String(sel));
     const de = el.querySelector(".de");                 // chip shows ✓ vs emoji
     if(de) de.textContent = sel ? "✓" : (d && d.emoji || "🎵");
   });
@@ -9050,7 +9125,7 @@ function renderLoading(done, total){
     <div class="loadwrap">
       <div class="eq"><span></span><span></span><span></span><span></span><span></span></div>
       <h2 class="display" style="font-size:22px; margin:14px 0 4px">Loading deck…</h2>
-      <p class="muted" style="font-size:13px">Finding previews · ${done}/${total}</p>
+      <p class="muted" style="font-size:14px">Finding previews · ${done}/${total}</p>
       <div class="loadbar"><span class="loadfill" style="width:${pct}%"></span></div>
     </div>`;
 }
@@ -9218,21 +9293,21 @@ function renderVerify(){
     body = `<div class="loadwrap">
       <div class="eq"><span></span><span></span><span></span><span></span><span></span></div>
       <h2 class="display" style="font-size:22px; margin:14px 0 4px">Checking years…</h2>
-      <p class="muted" style="font-size:13px">${VER.done}/${VER.total} · ${VER.flags.length} flagged so far</p>
+      <p class="muted" style="font-size:14px">${VER.done}/${VER.total} · ${VER.flags.length} flagged so far</p>
       <div class="loadbar"><span class="loadfill" style="width:${pct}%"></span></div>
     </div>`;
   } else {
     const rows = VER.flags.map(f=>`
       <div class="res-row">
         <div class="res-meta"><div class="res-ti">${esc(f.title)}</div><div class="res-ar">${esc(f.artist)} · ${esc(f.deck)}</div></div>
-        <div style="text-align:center; font-size:10px; color:var(--muted); flex:0 0 auto">deck<br><b style="color:var(--text); font-size:15px">${f.year}</b></div>
-        <div style="text-align:center; font-size:10px; color:var(--muted); flex:0 0 auto">Apple<br><b style="color:var(--cyan); font-size:15px">${f.apple}</b></div>
+        <div style="text-align:center; font-size:12px; color:var(--muted); flex:0 0 auto">deck<br><b style="color:var(--text); font-size:15px">${f.year}</b></div>
+        <div style="text-align:center; font-size:12px; color:var(--muted); flex:0 0 auto">Apple<br><b style="color:var(--cyan); font-size:15px">${f.apple}</b></div>
         <input type="number" inputmode="numeric" value="${f.year}" onchange="saveYear('${f.id}', this.value); toast('Saved '+this.value)"
-          style="width:74px; flex:0 0 auto; text-align:center; font-family:'Anton'; font-size:18px; color:var(--gold); padding:8px 4px" />
+          style="width:74px; flex:0 0 auto; text-align:center; font-family:var(--ui); font-weight:700; font-size:18px; color:var(--gold); padding:8px 4px" />
       </div>`).join("");
     body = `
       <div class="card">
-        <div class="muted" style="font-size:13px">Checked <b style="color:var(--text)">${VER.total}</b> songs · <b style="color:var(--bad)">${VER.flags.length}</b> disagree with Apple by 2+ years${VER.missing?` · ${VER.missing} had no preview`:''}.</div>
+        <div class="muted" style="font-size:14px">Checked <b style="color:var(--text)">${VER.total}</b> songs · <b style="color:var(--bad)">${VER.flags.length}</b> disagree with Apple by 2+ years${VER.missing?` · ${VER.missing} had no preview`:''}.</div>
         <div class="hint">Whatever you type is saved as an override and used in-game. Apple's date can also be wrong (remasters/comps), so set the real <b>original-release</b> year — don't just trust the Apple column.</div>
       </div>
       ${VER.flags.length ? `<div class="res-list">${rows}</div>` : `<div class="empty-tl">No big disagreements found 🎉</div>`}
@@ -9283,7 +9358,7 @@ function overlayChallengeInvite(){
   sheet.innerHTML = `
     <div class="winner-emoji">🎯</div>
     <div class="verdict" style="color:var(--cyan)">YOU'VE BEEN CHALLENGED</div>
-    <div class="muted" style="font-size:13.5px; line-height:1.5">${beat != null
+    <div class="muted" style="font-size:14px; line-height:1.5">${beat != null
       ? `A friend scored <b style="color:var(--text)">${beat}/${RUN_LEN}</b>${S.challenge.beatTime ? ` in ${fmtTime(S.challenge.beatTime)}` : ``} — beat them on the same ${RUN_LEN} songs.`
       : `${RUN_LEN} songs, picked by a friend.`} One shot, the clock counts ⏱</div>
     <button class="btn primary" style="margin-top:16px" onclick="closeOverlay(); startChallenge();">▶ Accept challenge</button>

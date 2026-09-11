@@ -6,15 +6,36 @@ preview clips** instead of Spotify.
 
 - **LIVE:** https://playyearworm.com 🎉 (custom apex domain on GitHub Pages,
   registered at TransIP; HTTPS cert auto-provisioned by GitHub).
-- **Working branch:** `previews-rewrite`; `main` kept in sync by fast-forward
-  (both currently equal). `CNAME` = playyearworm.com is committed.
-- **Deploy:** push to the branch → live after a short CDN/cache lag (~1–2 min).
+- **Working / deploy branch:** `main`. `CNAME` = playyearworm.com is committed.
+- **Deploy:** push to `main` → live after a short CDN/cache lag (~1–2 min).
   Hard-refresh (Cmd/Ctrl+Shift+R) or incognito to see changes immediately. The
   service worker also gates updates — on EVERY shipped change bump both
   `const BUILD` in index.html and `CACHE_NAME` in `sw.js` (they must match;
   BUILD shows in the footer). Versioning is semver as of 2.0.0 (the iTunes
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
+
+## 4.50.0 — typography and compact screens
+- DM Sans is the interface font; Rubik remains on the Yearworm wordmark.
+  Larger supporting text, tabular numbers, and fewer all-caps labels.
+- Home mode descriptions and game instructions are shorter. Playback status
+  reflects playing, paused, buffering, loading, and track verification states.
+- Mode setup shows a selected-deck summary; Change deck expands the existing
+  multi-deck picker. Rules remain available under How to play.
+- Profile shows four key stats, three recent games, and three featured badges.
+  More stats, history, and all achievements remain accessible. Settings groups
+  notifications, music preferences, sound, and Google linking.
+- Friends groups name/code entry under Add a friend and preserves unfinished
+  entry during social refresh. Ranks switches between Daily and Survival with
+  Today / This week filters. Results collapse reactions and avoid repeated
+  last-song details and the next-week teaser.
+- No catalogue, scoring, Daily draw, saved-game, or backend changes.
+- Validation: `node test/daily-rank.js`, `node test/deck-region.js
+  9ecdb307e14d2294126745dcd607d9ab2e2259a1`, and `node test/interface.js`.
+  33 checks passed, plus markup validation across 15 screen states. Browser
+  connection unavailable; this release has not had a visual phone check.
+- Rollback: revert the 4.50.0 commit to restore the previous 4.49.0 UI.
+  The service-worker version changes with the revert; player data is untouched.
 
 ## 4.49.0 — regional deck preferences
 - Dutch Top 10 Hits is shown and selected by default when any preferred browser

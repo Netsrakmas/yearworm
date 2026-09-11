@@ -74,6 +74,8 @@ function sharedSongs(g) {
 }
 function digest(value) { return createHash('sha256').update(JSON.stringify(value)).digest('hex'); }
 
+module.exports = { game };
+if (require.main === module) {
 test('Dutch primary or secondary language shows the deck and selects it at boot', () => {
   for (const languages of [['nl'], ['nl-NL'], ['nl-BE'], ['en-US', 'nl-NL'], ['NL-nl']]) {
     const g = game({ navigator: { languages, language: languages[0] } });
@@ -188,3 +190,4 @@ if (process.argv[2]) {
   });
 }
 console.log(`DECK REGION REGRESSION: ${passed} tests passed`);
+}

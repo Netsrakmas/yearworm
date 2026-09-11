@@ -90,6 +90,7 @@ const server = http.createServer((req, res) => {
   // so a seventh deck lands alone on page 2 and is easy to add without noticing
   // it never got a dot to scroll to.
   await pg.evaluate(() => { goTab('play'); openMode('survival'); });
+  await pg.click('#modeDeckPicker > summary');
   await pg.waitForTimeout(400);
   const car = await pg.$$eval('.deck-page', els => els.map(e => e.children.length));
   const dots = await pg.$$eval('.car-dot', e => e.length);
@@ -112,6 +113,8 @@ const server = http.createServer((req, res) => {
   // recipient gets must stay full-pool indices — they resolve it without ever
   // knowing a deck was involved.
   await pg.evaluate(() => { closeOverlay(); goTab('profile'); });
+  await pg.click('#profileSettings > summary');
+  await pg.click('#musicSettings > summary');
   await pg.waitForTimeout(400);
   const chips = await pg.$$eval('#chalDeckRow [data-deck]', els => els.map(e => e.dataset.deck));
   if(chips.join() !== d.ids.join()) throw new Error('challenge-deck chips do not match the decks: ' + chips.join(','));

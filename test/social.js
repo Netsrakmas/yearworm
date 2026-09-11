@@ -86,7 +86,7 @@ const server = http.createServer((req,res)=>{
 
   // 1) no profile -> claim card
   let card = await pg.$eval('#friendsCard', e=>e.innerText);
-  if(!/Claim a name/.test(card)) throw new Error('claim card missing: '+card.slice(0,120));
+  if(!/Choose a name/.test(card)) throw new Error('name setup missing: '+card.slice(0,120));
   if(/Played before|Google/.test(card)) throw new Error('Google UI must stay hidden while GAUTH.clientId is empty');
   // the wrapper div hides the card from the .card + .card sibling rule —
   // it needs its own top margin to breathe under the challenge card
@@ -96,7 +96,7 @@ const server = http.createServer((req,res)=>{
   const inCss = await pg.$eval('#handleIn', e=>{ const s=getComputedStyle(e); return s.backgroundColor+'|'+s.borderRadius; });
   if(/rgb\(255, 255, 255\)/.test(inCss) || !/1[0-9]px/.test(inCss)) throw new Error('handle input not dark-themed: '+inCss);
   await pg.$eval('#handleIn', e=>{ e.value='Sam K'; });
-  await pg.click('#friendsCard button:has-text("Claim")');
+  await pg.click('#friendsCard button:has-text("Save name")');
   await pg.waitForTimeout(400);
   card = await pg.$eval('#friendsCard', e=>e.innerText);
   if(!/YW-ABC234/.test(card)) throw new Error('friend code not shown after claim: '+card.slice(0,160));
@@ -142,6 +142,7 @@ const server = http.createServer((req,res)=>{
   console.log('friend request accept + friend avatar render + own-avatar sync OK');
 
   // 3) add by code posts the code and lands as an INSTANT friend
+  await pg.click('#addFriendPanel > summary');
   await pg.$eval('#codeIn', e=>{ e.value='yw-zz88kk'; });
   await pg.click('#friendsCard button:has-text("+ Add")');
   await pg.waitForTimeout(300);

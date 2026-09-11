@@ -93,14 +93,14 @@ let tid=1;
   }
   await pg.waitForTimeout(400);
   const sheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/DAILY #30/.test(sheet)) throw new Error('results title wrong: '+sheet.slice(0,200));
+  if(!/Daily #30/.test(sheet)) throw new Error('results title wrong: '+sheet.slice(0,200));
   if(!/📻 Golden Oldies/.test(sheet)) throw new Error('results missing theme line: '+sheet.slice(0,300));
-  if(!/next week: 📱 Modern Era/.test(sheet)) throw new Error('next-week tease missing: '+sheet.slice(0,300));
+  if(/next week:/i.test(sheet)) throw new Error('next-week teaser crowds the results');
   await pg.click('#sheet button:has-text("Challenge friends")');
   await pg.waitForTimeout(400);
   const shared = await pg.evaluate(()=>window.__shared);
   if(!/Daily #30 · 📻 Golden Oldies/.test(shared||'')) throw new Error('share text missing theme: '+shared);
-  console.log('in-game + results + tease + share text carry the theme OK');
+  console.log('in-game + results + share text carry the theme OK');
 
   // a Wildcard week announces itself but places NO era bound on the songs
   const wild = await pg.evaluate(()=>{
