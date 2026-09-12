@@ -15,6 +15,22 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.50.3 — consistent gameplay and profile type (private preview)
+- Gameplay and Profile use Rubik for controls, labels, years, and statistics.
+  Use a shared 14 / 16 / 24px scale, lighter button weights, and reserve the
+  expressive heading font for titles and results.
+- Put the record, playback button, and status in one compact player. Remove
+  the second visualization and the separate full-width playback button so the
+  timeline starts higher. Playback status and audio controls keep their wiring.
+- Show all six profile stats in one left-aligned grid, with numeric values
+  aligned consistently. Remove More stats and the flame beside the streak.
+  Match section headings, reduce the identity card, and align recent-game rows.
+- Private Sites preview only; no public deployment or changes to game rules.
+- Validation: 33 existing interface, Daily-rank, and deck-region checks passed.
+  Fifteen generated gameplay/profile states have balanced markup, unique IDs,
+  six visible stats, and the existing playable slots and playback control.
+  Visual review is based on Sam's supplied phone screenshots; no browser QA.
+
 ## 4.50.2 — clearer results (private preview)
 - Survival leads with songs placed, a personal-best label when earned, and
   one streak line. Remove the oversized icon, RUN OVER, and duplicate records.
