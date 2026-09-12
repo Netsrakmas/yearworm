@@ -15,6 +15,14 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.50.1 — more expressive type (private preview)
+- Replace the uniform DM Sans treatment with Bricolage Grotesque for large
+  headings, mode names, deck titles, and prominent numbers. Rubik returns for
+  interface text and keeps the existing wordmark.
+- Retain the shorter copy, compact layouts, readable supporting text, and
+  sentence-case labels from 4.50.0. Share-card type follows the same pairing.
+- This is a private Sites preview iteration; GitHub Pages is not updated.
+
 ## 4.50.0 — typography and compact screens
 - DM Sans is the interface font; Rubik remains on the Yearworm wordmark.
   Larger supporting text, tabular numbers, and fewer all-caps labels.

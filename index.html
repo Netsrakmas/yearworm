@@ -28,7 +28,7 @@
 <meta name="twitter:image" content="https://playyearworm.com/og-image.png?v=2" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Rubik:wght@900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Rubik:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
 <!-- anonymous, cookieless visit stats (goatcounter.com) — no personal data, see privacy.html -->
 <script data-goatcounter="https://yearworm.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 <style>
@@ -42,7 +42,8 @@
     --good:#4ADE80; --bad:#FF6B6B; --orange:#FF9F45;
     --glow-gold:rgba(246,185,59,.16);
     --glow-cyan:rgba(94,224,214,.10);
-    --ui:"DM Sans",system-ui,sans-serif;
+    --ui:"Rubik",system-ui,sans-serif;
+    --display-font:"Bricolage Grotesque","Rubik",system-ui,sans-serif;
     --mono:var(--ui);
     --r:14px; --r-ctl:12px; --r-card:18px; --r-hero:18px; --r-sheet:22px;
   }
@@ -66,7 +67,7 @@
   }
   #app{max-width:440px; margin:0 auto; min-height:100%;
     padding:max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));}
-  .display{font-family:var(--ui); font-weight:700; letter-spacing:-.025em; line-height:1.1;}
+  .display{font-family:var(--display-font); font-weight:800; letter-spacing:-.035em; line-height:1.1;}
   /* eyebrows are quiet by default — color is earned (daily=gold, online=cyan) */
   .eyebrow{font-size:14px; color:var(--muted); font-weight:600;}
   .muted{color:var(--muted);}
@@ -195,11 +196,11 @@
   .modecard:active{transform:scale(.99);}
   .modeicon{width:46px; height:46px; flex:0 0 auto; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:23px;}
   .modecard .mmid{flex:1; min-width:0;}
-  .modecard .mtitle{font-weight:700; font-size:17px; display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px;}
+  .modecard .mtitle{font-family:var(--display-font); font-weight:800; font-size:21px; letter-spacing:-.025em; line-height:1.15; display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px;}
   .modecard .mdesc{color:var(--muted); font-size:14px; margin-top:2px; line-height:1.35;}
   .modecard .mchev{color:var(--faint); font-size:22px; font-weight:300;}
-  .badge{font-size:12px; padding:3px 7px; white-space:nowrap;
-    border-radius:20px; background:rgba(255,255,255,.08); color:#B9C6EA; font-weight:400;}
+  .badge{font-family:var(--ui); font-size:12px; letter-spacing:0; padding:3px 7px; white-space:nowrap;
+    border-radius:20px; background:rgba(255,255,255,.08); color:#B9C6EA; font-weight:500;}
   .badge.live{background:rgba(94,224,214,.16); color:var(--cyan);}
   .badge.hot{background:rgba(246,185,59,.16); color:var(--gold);}
   /* lobby header (wordmark + spinning vinyl) */
@@ -239,7 +240,7 @@
   .lobby-intro{color:var(--muted); font-size:14px; line-height:1.5; margin:18px 4px 8px; text-align:center; text-wrap:pretty;}
   /* screen title bar for tab pages + config screens */
   .screenhd{display:flex; align-items:center; gap:12px; margin:6px 0 16px;}
-  .screenhd h2{font-weight:700; font-size:24px; letter-spacing:-.025em; margin:0; flex:1;}
+  .screenhd h2{font-family:var(--display-font); font-weight:800; font-size:30px; letter-spacing:-.035em; line-height:1.15; margin:0; flex:1;}
   .backbtn{background:var(--s2); border:1px solid var(--line); color:var(--text); width:40px; height:40px; border-radius:12px; font-size:18px; flex:0 0 auto;}
   /* Profile identity header: big avatar (tap to change) + inline-editable name */
   .idcard{display:flex; align-items:center; gap:14px;}
@@ -279,7 +280,7 @@
   @media (prefers-reduced-motion: reduce){ .tutpulse .slot.active{animation:none; border-color:var(--gold);} }
   /* Four key stats in a two-column grid; additional stats stay accessible. */
   .statgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:20px 12px; text-align:center;}
-  .statgrid .sv{font-family:var(--mono); font-size:20px; font-weight:700; color:var(--gold);}
+  .statgrid .sv{font-family:var(--display-font); font-size:28px; font-weight:800; letter-spacing:-.035em; line-height:1.15; color:var(--gold);}
   .statgrid .sl{font-size:14px; margin-top:3px; color:var(--muted);}
   /* achievements: compact 3-up tiles (30 badges — rows would be a scroll marathon) */
   .achgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
@@ -343,7 +344,7 @@
     background:var(--s2); border:1px solid transparent; color:var(--text); width:100%; text-align:left; font:inherit;}
   .deck .demoji{font-size:22px; flex:0 0 auto;}
   .deck .dmeta{flex:1; min-width:0;}
-  .deck .dt{display:block; font-size:15px; font-weight:700; line-height:1.25;}
+  .deck .dt{display:block; font-family:var(--display-font); font-size:17px; font-weight:700; line-height:1.2;}
   .deck .dd{display:block; font-size:12px; color:var(--muted); font-weight:500; margin-top:3px; line-height:1.3;}
   .deck .dn{flex:0 0 auto; font-size:12px; color:var(--muted); font-weight:500;}
   .deck.sel{background:var(--surface-2); border-color:var(--gold); box-shadow:none;}
@@ -370,7 +371,7 @@
   .deck-page .dchip:nth-child(6n+5){background:linear-gradient(160deg,#2A143A,#161D33 75%);}
   .dchip .de{font-size:22px; flex:0 0 auto;}
   .dchip .dm{min-width:0; width:100%;}
-  .dchip .dn2{display:block; font-weight:700; font-size:14px; line-height:1.25;}
+  .dchip .dn2{display:block; font-family:var(--display-font); font-weight:700; font-size:17px; letter-spacing:-.015em; line-height:1.2;}
   .dchip .dc2{display:block; font-size:12px; color:var(--muted); margin-top:3px; line-height:1.3;}
   .dchip.sel{border-top-color:var(--gold); border-left-color:var(--gold); border-right-color:var(--gold);
     border-bottom-color:var(--gold); box-shadow:none;}
@@ -392,7 +393,7 @@
 
   /* GAME */
   .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
-  .turn-name{font-weight:700; font-size:28px; letter-spacing:-.025em; line-height:1.15; overflow-wrap:anywhere;}
+  .turn-name{font-family:var(--display-font); font-weight:800; font-size:30px; letter-spacing:-.035em; line-height:1.15; overflow-wrap:anywhere;}
   .lb2{display:flex; flex-direction:column; gap:6px; margin-top:6px;}
   .lb2-row{display:flex; align-items:center; gap:10px; padding:8px 11px; border-radius:10px;
     border:1px solid transparent; background:var(--s1);}
@@ -427,7 +428,7 @@
   .tie{flex:0 0 auto; align-self:center; color:var(--muted); font-size:15px; font-weight:700; opacity:.55; padding:0 2px;}
   .placed{flex:0 0 auto; width:104px; min-height:96px; border-radius:12px; background:var(--s2);
     border:1px solid transparent; padding:10px 9px; display:flex; flex-direction:column; justify-content:space-between;}
-  .placed .yr{font-weight:700; font-size:28px; color:var(--gold); line-height:1.1;}
+  .placed .yr{font-family:var(--display-font); font-weight:800; font-size:30px; letter-spacing:-.04em; color:var(--gold); line-height:1.1;}
   .placed .ti{font-size:12px; line-height:1.25; max-height:42px; overflow:hidden;}
   .placed .ar{font-size:12px; color:var(--muted); margin-top:2px;}
   .empty-tl{color:var(--muted); font-size:14px; padding:14px 2px;}
@@ -459,9 +460,9 @@
     border-radius:0 0 var(--r-sheet) var(--r-sheet);}
   .sheetfoot .btn{margin-top:0;}
   @keyframes pop{from{transform:scale(.9); opacity:0}to{transform:scale(1); opacity:1}}
-  .verdict{font-weight:700; font-size:28px; letter-spacing:-.025em; line-height:1.15; margin-bottom:4px; overflow-wrap:anywhere;}
+  .verdict{font-family:var(--display-font); font-weight:800; font-size:30px; letter-spacing:-.035em; line-height:1.15; margin-bottom:4px; overflow-wrap:anywhere;}
   .verdict.good{color:var(--good);} .verdict.bad{color:var(--bad);}
-  .reveal-yr{font-weight:700; font-size:64px; letter-spacing:-.04em; line-height:1; margin:10px 0 2px;}
+  .reveal-yr{font-family:var(--display-font); font-weight:800; font-size:68px; letter-spacing:-.045em; line-height:1; margin:10px 0 2px;}
   .reveal-ti{font-size:17px; font-weight:700;}
   .reveal-ar{color:var(--muted); margin:2px 0 18px;}
   .report-yr{margin:12px 0 2px;}
@@ -541,10 +542,10 @@
   .deck-picker > summary::-webkit-details-marker{display:none;}
   .deck-picker > summary > span:first-child{flex:1; min-width:0;}
   .deck-picker small{display:block; font-size:12px; color:var(--muted); font-weight:400;}
-  .deck-picker b{display:block; font-size:16px; color:var(--text); overflow-wrap:anywhere;}
+  .deck-picker b{display:block; font-family:var(--display-font); font-size:18px; font-weight:700; color:var(--text); overflow-wrap:anywhere;}
   .deck-picker .change-deck{flex:0 0 auto; color:var(--cyan);}
   .settings{margin-top:12px;}
-  .settings > summary{font-size:18px; color:var(--text);}
+  .settings > summary{font-family:var(--display-font); font-size:22px; font-weight:700; color:var(--text);}
   .setting-row{padding:16px 0; border-top:1px solid var(--line);}
   .setting-row .row > div{flex:1; min-width:0;}
   .setting-row .row > button{flex:0 0 auto;}
@@ -567,7 +568,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.50.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.50.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -8720,7 +8721,7 @@ function overlayRunOver(){
       const oppF = S.reactTo && _social && _social.friends && _social.friends.find(f => f.id === S.reactTo.user);
       streakLine = `<div style="display:flex; align-items:center; justify-content:center; gap:16px; margin:10px 0 2px">
         <div style="text-align:center"><span class="avatar me" aria-hidden="true">${myAvatar()}</span><div class="muted" style="font-size:12px; margin-top:3px">you</div></div>
-        <div style="font-family:var(--ui); font-weight:700; font-size:38px; letter-spacing:2px; color:${vcol}">${score} – ${beat}</div>
+        <div style="font-family:var(--display-font); font-weight:800; font-size:40px; letter-spacing:-.025em; color:${vcol}">${score} – ${beat}</div>
         <div style="text-align:center"><span class="avatar" aria-hidden="true">${oppF ? friendAvatar(oppF) : avat(oppName)}</span><div class="muted" style="font-size:12px; margin-top:3px; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(oppName)}</div></div>
       </div>
       <div style="color:${vcol}; font-weight:700; font-size:15px; margin:2px 0 6px">${verdict}</div>`;
@@ -8835,8 +8836,8 @@ async function dailyShareCanvas(d){
   const W = 1080, H = 1080;
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const x = cv.getContext("2d"); if(!x) return null;
-  try{ await Promise.all([document.fonts.load('900 72px Rubik'), document.fonts.load('700 27px "DM Sans"'),
-    document.fonts.load('600 36px "DM Sans"'), document.fonts.load('400 27px "DM Sans"'), document.fonts.load('700 156px "DM Sans"')]); }catch(e){}
+  try{ await Promise.all([document.fonts.load('900 72px Rubik'), document.fonts.load('700 27px Rubik'),
+    document.fonts.load('600 36px Rubik'), document.fonts.load('400 27px Rubik'), document.fonts.load('800 156px "Bricolage Grotesque"')]); }catch(e){}
   // Composed from the APP'S OWN components — header lockup, a real .card
   // surface, eyebrow type, tiles, the cyan action button — so the share reads
   // as "a piece of the game", not a separate poster. FOUR type sizes only
@@ -8863,7 +8864,7 @@ async function dailyShareCanvas(d){
   g = x.createLinearGradient(tx,0,tx+wordW,0); g.addColorStop(0,"#F6B93B"); g.addColorStop(1,"#5EE0D6");
   x.fillStyle = g; x.fillText("Yearworm", tx, hy+26);
   x.textAlign = "center";
-  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Sans", sans-serif';
+  x.fillStyle = "#8EA0C9"; x.font = '400 27px Rubik, sans-serif';
   try{ x.letterSpacing = "6px"; }catch(e){}
   x.fillText("GUESS THE YEAR · BUILD THE LINE", W/2 + 3, hy+90);   // +3 rebalances the trailing letterspace
   try{ x.letterSpacing = "0px"; }catch(e){}
@@ -8876,12 +8877,12 @@ async function dailyShareCanvas(d){
   x.beginPath(); x.roundRect(cardX, cardY, cardW, cardH, 44); x.stroke();
   // eyebrow, exactly the app's daily card: 11px→27, .14em spacing, gold
   const wTh = weekTheme(d.num || dailyNumber());
-  x.fillStyle = "#F6B93B"; x.font = '700 27px "DM Sans", sans-serif';
+  x.fillStyle = "#F6B93B"; x.font = '700 27px Rubik, sans-serif';
   try{ x.letterSpacing = "4px"; }catch(e){}
-  x.fillText("DAILY CHALLENGE #" + (d.num||dailyNumber()) + (wTh ? " · " + wTh.emoji + " " + wTh.name.toUpperCase() : ""), W/2 + 2, cardY + 96);
+  x.fillText("DAILY CHALLENGE #" + (d.num||dailyNumber()) + (wTh ? " · " + wTh.emoji + " " + wTh.name.toUpperCase() : ""), W/2 + 2, cardY + 96, cardW - 80);
   try{ x.letterSpacing = "0px"; }catch(e){}
   // the score — the largest type on the card
-  x.fillStyle = "#EEF2FF"; x.font = '700 156px "DM Sans", sans-serif';
+  x.fillStyle = "#EEF2FF"; x.font = '800 156px "Bricolage Grotesque", sans-serif';
   x.fillText((d.score||0) + "/" + RUN_LEN, W/2, cardY + 288);
   // result tiles
   const res = (d.results||[]).slice(0, RUN_LEN), n = Math.max(res.length, RUN_LEN);
@@ -8891,16 +8892,16 @@ async function dailyShareCanvas(d){
     x.beginPath(); x.roundRect(x0 + i*(sq+gap), ty, sq, sq, 16); x.fill();
   }
   // streak + time, in the results sheet's own words
-  x.fillStyle = "#B9C6EA"; x.font = '600 36px "DM Sans", sans-serif';
+  x.fillStyle = "#B9C6EA"; x.font = '600 36px Rubik, sans-serif';
   x.fillText("🔥 streak · " + (d.streak||1) + " day" + ((d.streak||1)===1?"":"s") + (d.timeMs ? "    ·    ⏱ " + fmtTime(d.timeMs) : ""), W/2, cardY + 488);
   // the app's cyan action button, verbatim (bg cyan, dark text, darker bottom edge)
   const bw = 640, bh = 96, bx = W/2 - bw/2, by = cardY + 532;
   x.fillStyle = "#3FA8C6"; x.beginPath(); x.roundRect(bx, by+6, bw, bh, 28); x.fill();
   x.fillStyle = "#5EE0D6"; x.beginPath(); x.roundRect(bx, by, bw, bh-6, 28); x.fill();
-  x.fillStyle = "#00303F"; x.font = '700 36px "DM Sans", sans-serif';
+  x.fillStyle = "#00303F"; x.font = '700 36px Rubik, sans-serif';
   x.fillText("Beat me on the same songs", W/2, by + 58);
   // footnote, app-style, centered in the bottom band
-  x.fillStyle = "#8EA0C9"; x.font = '400 27px "DM Sans", sans-serif';
+  x.fillStyle = "#8EA0C9"; x.font = '400 27px Rubik, sans-serif';
   x.fillText("playyearworm.com · free · no app needed", W/2, 1032);
   return cv;
 }
