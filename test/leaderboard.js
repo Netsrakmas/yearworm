@@ -122,19 +122,19 @@ const server = http.createServer((req,res)=>{
   for(const b of beacons) if(b.device || b.nick || Object.keys(b).length !== 1)
     throw new Error('beacon carried more than a step: '+JSON.stringify(b));
   console.log('funnel beacons: land→start→finish once each, no identifying data OK');
-  if(!/Ace 5\/5/.test(sheet) || !/Cy 4\/5/.test(sheet)) throw new Error('top-3 missing: '+sheet.slice(0,220));
+  if(/Ace 5\/5|Cy 4\/5/.test(sheet)) throw new Error('results should show your rank without repeating the leaderboard');
   if(posts.length!==1) throw new Error('expected 1 submit, got '+posts.length);
   const p0 = posts[0];
   if(!/^[a-f0-9]{32}$/.test(p0.device) || p0.score==null || p0.timeMs==null || p0.day==null) throw new Error('bad submit payload: '+JSON.stringify(p0));
-  console.log('daily submit + rank line + top-3 OK ·', JSON.stringify({day:p0.day, score:p0.score}));
+  console.log('daily submit + compact rank line OK ·', JSON.stringify({day:p0.day, score:p0.score}));
 
   // the sheet's nickname input is gone (identity lives on Profile since 4.0);
-  // the Done button now sits in a sticky footer so it's visible without scrolling
+  // Menu stays beside the main action, above the expandable song recap.
   if(/playing as/.test(sheet)) throw new Error('sheet still shows the redundant nickname field');
-  if(!(await pg.$eval('#sheet .sheetfoot button', b=>/Done/.test(b.textContent)))) throw new Error('sticky Done footer missing');
+  if(!(await pg.$('#sheet .result-links button:has-text("Menu")'))) throw new Error('result navigation missing');
 
   // back on setup: daily card shows the mini rank (via GET)
-  await pg.click('#sheet button:has-text("Done")');
+  await pg.click('#sheet button:has-text("Menu")');
   await pg.waitForTimeout(600);
   const card = await pg.$eval('#app', e=>e.innerText);
   if(!/🌍 #7\/42/.test(card)) throw new Error('daily-card mini rank missing: '+card.slice(0,200));
@@ -209,7 +209,7 @@ const server = http.createServer((req,res)=>{
     await pg.waitForTimeout(250);
   }
   await pg.waitForTimeout(600);
-  // the set board lives inside the "Show the songs" toggle now — open it first
+  // the set board lives inside Song recap — open it first
   await pg.click('#sheet summary');
   await pg.waitForTimeout(200);
   const chalSheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
@@ -218,7 +218,7 @@ const server = http.createServer((req,res)=>{
   console.log('results sheet shows set board (inside the songs toggle) with Jesse + (you) OK');
 
   // back on setup: Jesse counts as NEW on our own set -> news card
-  await pg.click('#sheet button:has-text("Done")');
+  await pg.click('#sheet button:has-text("Menu")');
   await pg.waitForTimeout(700);
   let news = await pg.$eval('#app', e=>e.innerText);
   if(!/new results on your challenges/i.test(news) || !/Jesse/.test(news)) throw new Error('news card missing: '+news.slice(0,220));

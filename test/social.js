@@ -201,17 +201,18 @@ const server = http.createServer((req,res)=>{
   await pg.waitForTimeout(500);
   const sheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
   // decluttered duel sheet: scoreline is THE score (no separate big n/5), one
-  // [Rematch][Pass on] action row instead of a strip of friend chips, sticky Done
+  // Rematch is primary; Pass on and Menu are smaller navigation actions.
   if(/straight to a friend/.test(sheet)) throw new Error('old direct-send row still present: '+sheet.slice(0,240));
   if(!/Rematch/.test(sheet) || !/Pass on/.test(sheet)) throw new Error('Rematch/Pass-on row missing: '+sheet.slice(0,240));
-  if(!/Result sent back to Jesse/.test(sheet)) throw new Error('friend-challenge "result sent" confirmation missing: '+sheet.slice(0,240));
+  if(!/Result sent to Jesse/.test(sheet)) throw new Error('friend-challenge "result sent" confirmation missing: '+sheet.slice(0,240));
   if(/Send your result back/.test(sheet)) throw new Error('redundant link-share shown for a friend challenge: '+sheet.slice(0,240));
-  if(!(await pg.$('#sheet .sheetfoot'))) throw new Error('sticky Done footer missing on duel sheet');
-  console.log('duel sheet: decluttered (no chip row), Rematch + Pass on + sticky Done OK');
+  if(!(await pg.$('#sheet .result-links button:has-text("Menu")'))) throw new Error('duel navigation missing');
+  console.log('duel sheet: Rematch + Pass on + Menu OK');
   // 5a) this run came from Jesse's inbox challenge -> reaction row present;
   // 6 primary reactions + a "…" expander for the rest
-  if(!/react to Jesse/.test(sheet)) throw new Error('reaction row missing: '+sheet.slice(0,240));
+  if(!/React to Jesse/.test(sheet)) throw new Error('reaction row missing: '+sheet.slice(0,240));
   if((await pg.$eval('#reactMore', e=>getComputedStyle(e).display)) !== 'none') throw new Error('extra reactions should start hidden');
+  await pg.click('#sheet summary:has-text("React to Jesse")');
   await pg.click('#reactRow button:has-text("…")');
   await pg.waitForTimeout(150);
   if((await pg.$eval('#reactMore', e=>getComputedStyle(e).display)) === 'none') throw new Error('… did not expand the extra reactions');
@@ -379,7 +380,8 @@ const server = http.createServer((req,res)=>{
 
   // 5b) an incoming reaction renders in the friends card and dismisses
   state.inbox = [{id:9, from:'f1', handle:'Jesse', kind:'react', payload:{emoji:'😂', score:2}, created:2}];
-  await pg.click('#sheet button:has-text("Done")');
+  await pg.click('#sheet button:has-text("Menu")');
+  await pg.evaluate(()=>goTab('friends'));
   await pg.waitForTimeout(600);
   card = await pg.$eval('#friendsCard', e=>e.innerText);
   if(!/Jesse reacted 😂 to your challenge/.test(card)) throw new Error('reaction inbox row missing: '+card.slice(0,220));
@@ -452,7 +454,7 @@ const server = http.createServer((req,res)=>{
   if(!autoChal || autoChal.to!=='f1' || !/^\d+(\.\d+)+$/.test(autoChal.set) || autoChal.score==null)
     throw new Error('friend challenge did not auto-send: '+JSON.stringify(autoChal));
   const sheet2 = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/Challenge sent to Jesse!/.test(sheet2) || !/You set \d\/5 to beat/.test(sheet2)) throw new Error('sent hero missing: '+sheet2.slice(0,260));
+  if(!/Challenge sent to Jesse/.test(sheet2)) throw new Error('sent confirmation missing: '+sheet2.slice(0,260));
   if(await pg.$$eval('#sheet .ovrow', els=>els.some(e=>/Jesse/.test(e.innerText)))) throw new Error('target friend should not reappear on the results sheet');
   // the pass-on button covers "challenge someone else"; Jesse is excluded inside it
   if(!/Challenge friends/.test(sheet2)) throw new Error('pass-on button missing after auto-send: '+sheet2.slice(0,260));

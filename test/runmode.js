@@ -52,9 +52,7 @@ async function placeN(pg, n, collectTitles){
     if(collectTitles){
       if(i<n) titles.push(await pg.$eval('.reveal-ti', e=>e.textContent.trim()));
       else { // the run's final placement lands straight on the results sheet
-        const t = await pg.$eval('#sheet', e=>e.innerText);
-        const m = t.match(/last song:\s*[✓✗] \d+ — (.+?) · /);
-        titles.push(m ? m[1].trim() : '?');
+        titles.push(await pg.$eval('#runRecap > div:last-child .muted', e=>e.textContent.split(' — ')[0].trim()));
       }
     }
     if(i===n) break;   // results sheet is already up — nothing to click through
@@ -96,7 +94,7 @@ async function placeN(pg, n, collectTitles){
   await pg.click('text=⚡ Start turbo');
   await placeN(pg, 10);   // 2 players x 5, reveal button rotates automatically
   sheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/WINS/.test(sheet) || !(sheet.match(/\/5/g)||[]).length>=2) throw new Error('turbo multi ranking wrong: '+sheet.slice(0,160));
+  if(!/wins/.test(sheet) || !(sheet.match(/\/5/g)||[]).length>=2) throw new Error('turbo multi ranking wrong: '+sheet.slice(0,160));
   const placed = await pg.$$eval('.placed', e=>e.length);
   if(placed !== 11){
     const st = await pg.evaluate(()=>({board:S.players[0].timeline.map(c=>c.name+':'+c.year+':o'+c.owner),
@@ -124,7 +122,7 @@ async function placeN(pg, n, collectTitles){
   if(!m) throw new Error('challenge link not in share text: '+shared);
   const chalHash = m[0];
   console.log('daily: results + challenge link OK ·', chalHash.slice(0,26)+'…');
-  await pg.click('#sheet button:has-text("Done")');
+  await pg.click('#sheet button:has-text("Menu")');
   await pg.waitForTimeout(400);
   const cardTxt = await pg.$eval('#app', e=>e.innerText);
   if(!/Done ·/.test(cardTxt)) throw new Error('daily card not in done state');
@@ -185,7 +183,7 @@ async function placeN(pg, n, collectTitles){
   const titles3 = await placeN(pg, 5, true);
   sheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
   if(!/CHALLENGE/.test(sheet)) throw new Error('challenge results wrong: '+sheet.slice(0,140));
-  if(!/beat their|Tied|They hold it|faster|Dead even/i.test(sheet)) throw new Error('challenge verdict line missing: '+sheet.slice(0,160));
+  if(!/You win|They win|draw/i.test(sheet)) throw new Error('challenge verdict line missing: '+sheet.slice(0,160));
   const sameSongs = JSON.stringify(titles3)===JSON.stringify(titles1);
   if(!sameSongs){
     console.log(' daily :',titles1.join(' | ')); console.log(' chall :',titles3.join(' | '));
@@ -204,7 +202,7 @@ async function placeN(pg, n, collectTitles){
   // back on setup: the link carries the challenger's score and we've played —
   // that's a RESULT card (verdict vs their score), with rematch + send-back.
   // No Play button anywhere on it = the one-shot lock still holds.
-  await pg.click('#sheet button:has-text("Done")');
+  await pg.click('#sheet button:has-text("Menu")');
   await pg.waitForTimeout(400);
   let lockTxt = await pg.$eval('#app', e=>e.innerText);
   if(!/challenge result/i.test(lockTxt) || !/vs your/.test(lockTxt)) throw new Error('result card missing after play: '+lockTxt.slice(0,220));

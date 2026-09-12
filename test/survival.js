@@ -58,7 +58,7 @@ const server = http.createServer((req,res)=>{
     }));
     if(over.lives < prevLives){ sawLifeLoss = true; }
     prevLives = over.lives;
-    if(over.show && /RUN OVER/.test(over.txt)){ deaths=1; break; }
+    if(over.show && /songs? placed/.test(over.txt)){ deaths=1; break; }
     if(over.show){ await pg.click('#sheet .btn.primary'); await pg.waitForTimeout(250); continue; }
     const slot = await pg.$('.slot.active');
     if(!slot){ await pg.waitForTimeout(400); continue; }
@@ -71,7 +71,7 @@ const server = http.createServer((req,res)=>{
     sheet: document.getElementById('sheet').innerText.replace(/\s+/g,' '),
     best: JSON.parse(localStorage.getItem('tl_best')||'{}') }));
   if(fin.lives!==0) throw new Error('run over but lives='+fin.lives);
-  if(!/You placed/.test(fin.sheet)) throw new Error('game-over sheet missing score: '+fin.sheet.slice(0,160));
+  if(!/\d+ songs? placed/.test(fin.sheet)) throw new Error('game-over sheet missing score: '+fin.sheet.slice(0,160));
   if(!( (fin.best.cards||0) >= fin.score )) throw new Error('personal best not recorded: '+JSON.stringify(fin.best)+' score '+fin.score);
   console.log('survival: lives drain on misses, RUN OVER at 0, best recorded OK ·', fin.score, 'placed');
 

@@ -474,7 +474,33 @@
   .year-fix .muted{font-size:12px; letter-spacing:0;}
   .year-fix input.rev-yr{width:92px; height:46px; font-size:20px; text-align:center; -moz-appearance:textfield;}
   .year-fix input.rev-yr::-webkit-outer-spin-button, .year-fix input.rev-yr::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
-  .winner-emoji{font-size:54px;}
+  .winner-emoji{font-size:32px; margin-bottom:8px;}
+  /* Results: one focal score, compact supporting facts, then the next action. */
+  .result-kicker{font-size:14px; color:var(--muted); margin:0 0 10px;}
+  .result-score{font-family:var(--display-font); font-size:80px; font-weight:800; letter-spacing:-.045em; line-height:1; color:var(--gold); margin:4px 0;}
+  .result-score small{font-family:var(--ui); font-size:28px; font-weight:500; letter-spacing:0; color:var(--muted);}
+  .result-label{font-size:16px; margin:4px 0 0;}
+  .result-badge{display:inline-block; font-size:14px; font-weight:600; color:var(--good); background:rgba(62,220,124,.1); border-radius:99px; padding:6px 12px; margin:12px 0 0;}
+  .result-meta{display:flex; flex-wrap:wrap; justify-content:center; gap:6px 16px; font-size:14px; color:var(--muted); margin:12px 0 0;}
+  .result-meta b{color:var(--text); font-weight:500;}
+  .result-progress{font-size:18px; letter-spacing:2px; margin:12px 0 0;}
+  .result-rank{font-size:14px; color:var(--muted); margin-top:12px;}
+  .result-actions{margin-top:20px;}
+  .result-links{display:flex; justify-content:center; flex-wrap:wrap; gap:0 8px; margin-top:6px;}
+  .result-links .btn{width:auto; min-height:44px; padding:10px 8px; font-size:14px; font-weight:500;}
+  .result-details{margin-top:8px; border-top:1px solid var(--line); text-align:left;}
+  .result-details > summary{list-style-position:inside; text-align:center;}
+  .result-details .report-yr{text-align:center;}
+  .result-standings{list-style:none; padding:0; margin:18px 0 0; text-align:left;}
+  .result-standing{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .result-standing:last-child{border-bottom:0;}
+  .result-standing .result-name{flex:1; min-width:0; overflow-wrap:anywhere; font-size:16px;}
+  .result-standing .result-total{text-align:right; flex:0 0 auto;}
+  .result-total b{display:block; font-family:var(--display-font); font-weight:700; font-size:22px;}
+  .result-total small{display:block; font-size:12px; color:var(--muted);}
+  .reveal-details{margin-top:6px;}
+  .reveal-details > summary{list-style-position:inside;}
+  .reveal-details .report-yr{margin-top:0;}
   /* Google sign-in: our themed pill carries the look; the real (Google-drawn)
      button is stretched invisibly over it and takes the click */
   .gwrap{position:relative; display:inline-flex;}
@@ -568,7 +594,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.50.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.50.2";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5665,10 +5691,10 @@ async function lbFetchDaily(){
   try{ const r = await fetch(LB.url+"/daily", { method:"POST", headers:{ "content-type":"application/json" },
     body: JSON.stringify({ read:1, device: deviceId() }) }); return r.ok ? await r.json() : null; }catch(e){ return null; }
 }
-function lbLineHTML(b){
+function lbLineHTML(b, compact=false){
   if(!b || !b.me) return `<span class="muted">leaderboard unavailable</span>`;
   const medal = b.me.rank===1 ? "🥇" : b.me.rank===2 ? "🥈" : b.me.rank===3 ? "🥉" : "🌍";
-  const mini = (b.top||[]).slice(0,3).map((t,i)=>`${["🥇","🥈","🥉"][i]} ${esc(t.nick)} ${t.score}/${RUN_LEN}`).join(" · ");
+  const mini = compact ? "" : (b.top||[]).slice(0,3).map((t,i)=>`${["🥇","🥈","🥉"][i]} ${esc(t.nick)} ${t.score}/${RUN_LEN}`).join(" · ");
   return `${medal} <b>#${b.me.rank}</b> of ${b.total} today${mini ? `<div class="muted" style="font-size:12px; margin-top:3px">${mini}</div>` : ``}`;
 }
 function saveNickTop(v){
@@ -6007,7 +6033,7 @@ function friendsOverview(){
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
     <div class="winner-emoji">⚔️</div>
-    <div class="verdict good" style="margin-top:6px">STANDINGS</div>
+    <div class="verdict good" style="margin-top:6px">Standings</div>
     ${fr.length ? `
     <div class="ovrow" style="cursor:default; border-bottom:1px solid var(--line); padding-bottom:6px" aria-hidden="true">
       <span class="avatar sm" style="visibility:hidden"></span>
@@ -8487,8 +8513,8 @@ async function recheckOverlay(){
 }
 
 // data-correction is collapsed and saves for NEXT time only — it can't flip a result
-function flagBlockHTML(id, year){
-  return `<details class="report-yr"><summary>🚩 Something wrong with this card?</summary>
+function flagBlockHTML(id, year, label="Report a problem"){
+  return `<details class="report-yr"><summary>${esc(label)}</summary>
         <div class="year-fix" style="margin-top:8px;"><span class="muted" style="font-size:12px">correct year</span>
           <input class="rev-yr" type="number" inputmode="numeric" value="${year}"
             onchange="saveYear('${id}', this.value); toast('Thanks — fixed for next time.')" /></div>
@@ -8526,17 +8552,17 @@ function overlayReveal(correct, p){
   if(survival){
     const hearts = "❤️".repeat(Math.max(0,S.lives)) + "🖤".repeat(Math.max(0,3-S.lives));
     sub = correct ? `${S.score} placed · streak ${S.streak}` : (dead ? `Out of lives` : `Lost a life`);
-    btn = dead ? '💀 See results' : 'Next song →';
+    btn = dead ? 'See results' : 'Next song';
     // flagBlock too: survival is the mode you replay most, so it's where a wrong
     // year gets noticed first — it was the ONLY mode without the report control
-    var extra = `<div style="font-size:22px; letter-spacing:3px; margin:14px 0 4px">${hearts}</div>${flagBlock}`;
+    var extra = `<div style="font-size:22px; letter-spacing:3px; margin:12px 0 4px">${hearts}</div>`;
   } else if(run){
     const tut = S.mode==="tut", runLen = tut ? TUT_LEN : RUN_LEN;
     // tutorial reveals COACH instead of scorekeeping — the mechanic is the lesson
     sub = tut
       ? ((p.tries||0) === 1
-          ? (correct ? "Nailed it — every song locks onto the line at its true year." : "No stress — it locks at its true year anyway, and the line grows.")
-          : "The line grows, the gaps get tighter — that's where it gets fun.")
+          ? "Every song joins the timeline at its true year."
+          : "Next, find the gap between the years.")
       : `Song ${p.tries||0}/${runLen} · score ${p.hits||0}`;
     const allDone = S.players.every(pl => (pl.tries||0) >= RUN_LEN);
     let nxtName = null;
@@ -8545,8 +8571,8 @@ function overlayReveal(correct, p){
       do{ t = (t+1) % S.players.length; } while((S.players[t].tries||0) >= RUN_LEN);
       if(t !== S.turn) nxtName = S.players[t].name;
     }
-    btn = allDone ? '🏁 See results' : (nxtName ? '▶ Pass to '+esc(nxtName)+' →' : 'Next song →');
-    var extra = `<div style="font-size:19px; letter-spacing:2px; margin:12px 0 4px">${(p.results||[]).map(r=>r?'🟩':'🟥').join('')}${'⬛'.repeat(Math.max(0,runLen-(p.results||[]).length))}</div>${tut ? `` : flagBlock}`;
+    btn = allDone ? 'See results' : (nxtName ? 'Pass to '+esc(nxtName) : 'Next song');
+    var extra = ``;
   } else {
     sub = reached ? '🏁 '+esc(p.name)+' hits '+S.target+'!'+(won?'':' Last chance for anyone one card short.')
         : anyFinished ? (correct?'Card goes to '+esc(p.name):'Card is discarded')+' · 🏁 final chance'
@@ -8557,8 +8583,8 @@ function overlayReveal(correct, p){
         if(S.players[t].timeline.length === S.target-1){ nxt = S.players[t]; break; }
       }
     }
-    btn = won ? '🏆 See results' : (S.players.length>1 ? '▶ Pass to '+esc(nxt.name)+' →' : 'Next turn →');
-    var extra = flagBlock;
+    btn = won ? 'See results' : (S.players.length>1 ? 'Pass to '+esc(nxt.name) : 'Next turn');
+    var extra = ``;
   }
   sheet.innerHTML = `
     <div class="verdict ${correct?'good':'bad'}">${correct?'✓ Correct':'✗ Not quite'}</div>
@@ -8566,11 +8592,13 @@ function overlayReveal(correct, p){
     <div class="reveal-yr" style="color:${correct?'var(--good)':'var(--bad)'}">${c.year}</div>
     <div class="reveal-ti">${esc(c.name)}</div>
     <div class="reveal-ar">${esc(c.artist)}</div>
-    ${c.view ? `<div><a href="${esc(c.view)}" target="_blank" rel="noopener"
-        style="font-size:12px; color:var(--muted); display:inline-block; padding:10px 8px 6px">🎵 Open in Apple Music</a></div>` : ``}
     ${missHint ? `<div style="font-size:14px; color:var(--cyan); margin-top:8px; font-weight:600">↳ belonged ${missHint}</div>` : ``}
     ${extra}
     <button class="btn primary" style="margin-top:14px" onclick="advance()">${btn}</button>
+    ${c.view || S.mode!=='tut' ? `<details class="disclosure reveal-details"><summary>Song details</summary>
+      ${c.view ? `<a href="${esc(c.view)}" target="_blank" rel="noopener" class="btn ghost sm" style="display:inline-block">Open in Apple Music</a>` : ``}
+      ${S.mode==='tut' ? `` : flagBlock}
+    </details>` : ``}
   `;
   showSheet();
 }
@@ -8590,15 +8618,17 @@ function overlayGameOver(deckEmpty, winner){
     sfx(newBest ? "win" : "lose");   // out of lives IS a defeat — sound like one (new best still celebrates)
     const sheet = document.getElementById("sheet");
     sheet.innerHTML = `
-      <div class="winner-emoji">🎯</div>
-      <div class="verdict ${newBest?'good':'bad'}" style="margin-top:6px">RUN OVER</div>
-      <div style="font-size:14px; margin:10px 0 2px">You placed <b style="font-size:20px; color:var(--good)">${S.score}</b> song${S.score===1?'':'s'}${deckEmpty?' (deck ran dry)':''}</div>
-      <div class="muted" style="font-size:14px; margin-bottom:10px">Best streak this run: <b style="color:var(--text)">${S.bestStreak}</b></div>
-      ${newBest?`<div style="color:var(--good); font-weight:700; font-size:15px; margin:8px 0">🎉 New personal best!</div>`:``}
-      <div class="muted" style="font-size:12px; margin-bottom:16px">All-time best · ${nb.cards} placed · ${nb.streak} streak</div>
-      <button class="btn pink" onclick="playAgain()">Play again</button>
-      <button class="btn ghost" style="margin-top:8px" onclick="backToSetup()">Change setup</button>
-      <button class="btn ghost sm" style="margin-top:6px" onclick="backToMenu()">Quit to menu</button>
+      <div class="result-score">${S.score}</div>
+      <div class="result-label">song${S.score===1?'':'s'} placed</div>
+      ${newBest ? `<div class="result-badge">${S.score > (best.cards||0) ? 'New personal best!' : 'New streak best!'}</div>` : ``}
+      <div class="result-meta"><span>Best streak: <b>${S.bestStreak}</b></span>${deckEmpty ? `<span>All songs played</span>` : ``}</div>
+      <div class="result-actions">
+        <button class="btn pink" onclick="playAgain()">Play again</button>
+        <div class="result-links">
+          <button class="btn ghost" onclick="backToSetup()">Change setup</button>
+          <button class="btn ghost" onclick="backToMenu()">Menu</button>
+        </div>
+      </div>
     `;
     showSheet();
     checkAchievements();
@@ -8611,12 +8641,20 @@ function overlayGameOver(deckEmpty, winner){
   sfx("win");
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
-    <div class="winner-emoji">🏆</div>
-    <div class="verdict good" style="margin-top:6px">${esc(w.name)} WINS</div>
-    <div class="muted" style="font-size:14px; margin:6px 0 4px">${deckEmpty?'Deck ran out — most cards takes it.':tiedOnCards?'Tie on cards — fastest time decides ⏱':''}</div>
-    <div style="margin:14px 0 18px">${rankedC.map(pl=>`<div style="font-size:14px; margin:3px 0">${pl===w?'🏆 ':''}${esc(pl.name)} — <b>${pl.timeline.length}</b>${S.players.length>1?` · ${fmtTime(pl.timeMs)}`:''}</div>`).join("")}</div>
-    <button class="btn pink" onclick="playAgain()">Play again</button>
-    <button class="btn ghost" style="margin-top:8px" onclick="backToSetup()">Change setup</button>
+    <div class="result-kicker">Pass &amp; Play</div>
+    <div class="verdict good">${esc(w.name)} wins</div>
+    ${deckEmpty || tiedOnCards ? `<div class="result-meta">${tiedOnCards ? 'Equal cards — fastest time wins' : 'Deck complete — most cards wins'}</div>` : ``}
+    <ol class="result-standings">${rankedC.map((pl,i)=>`<li class="result-standing">
+      <span class="muted">${i+1}</span><span class="result-name">${esc(pl.name)}</span>
+      <span class="result-total"><b>${pl.timeline.length} cards</b>${S.players.length>1?`<small>${fmtTime(pl.timeMs)}</small>`:''}</span>
+    </li>`).join("")}</ol>
+    <div class="result-actions">
+      <button class="btn pink" onclick="playAgain()">Play again</button>
+      <div class="result-links">
+        <button class="btn ghost" onclick="backToSetup()">Change setup</button>
+        <button class="btn ghost" onclick="backToMenu()">Menu</button>
+      </div>
+    </div>
   `;
   showSheet();
   checkAchievements();
@@ -8658,22 +8696,28 @@ function overlayRunOver(){
     const ranked = [...S.players].sort((a,b)=>((b.hits||0)-(a.hits||0)) || ((a.timeMs||0)-(b.timeMs||0)));
     const top = ranked[0];
     const tieBroken = ranked.length>1 && (ranked[0].hits||0)===(ranked[1].hits||0);
-    const rows = ranked.map(pl=>{
+    const rows = ranked.map((pl,i)=>{
       const oc = ownerColor(S.players.indexOf(pl));
-      return `<div style="font-size:14px; margin:5px 0">${pl===top?'🏆 ':''}<span style="color:${oc}; font-weight:700">● ${esc(pl.name)}</span> — <b>${pl.hits||0}/${RUN_LEN}</b> · ${fmtTime(pl.timeMs)} <span style="font-size:12px; letter-spacing:1px">${squares(pl)}</span></div>`;
+      return `<li class="result-standing"><span class="muted">${i+1}</span>
+        <span class="result-name" style="color:${oc}">${esc(pl.name)}</span>
+        <span class="result-total"><b>${pl.hits||0}/${RUN_LEN}</b><small>${fmtTime(pl.timeMs)}</small></span></li>`;
     }).join("");
     buzz([0,30,40,30,40,90]);
     confettiBurst();
     sfx("win");
     sheet.innerHTML = `
-      <div class="winner-emoji">⚡</div>
-      <div class="verdict good" style="margin-top:6px">${esc(top.name)} WINS</div>
-      ${tieBroken ? `<div class="muted" style="font-size:14px; margin-top:4px">tie — fastest time decides ⏱</div>` : ``}
-      ${lastLine}
-      <div style="margin:14px 0 16px">${rows}</div>
-      ${last ? flagBlockHTML(last.id, last.year) : ``}
-      <button class="btn pink" onclick="playAgain()">⚡ Run it again</button>
-      <button class="btn ghost" style="margin-top:8px" onclick="backToSetup()">Back to menu</button>
+      <div class="result-kicker">Turbo</div>
+      <div class="verdict good">${esc(top.name)} wins</div>
+      ${tieBroken ? `<div class="result-meta">Equal scores — fastest time wins</div>` : ``}
+      <ol class="result-standings">${rows}</ol>
+      <div class="result-actions">
+        <button class="btn pink" onclick="playAgain()">Play again</button>
+        <div class="result-links">
+          <button class="btn ghost" onclick="backToSetup()">Change setup</button>
+          <button class="btn ghost" onclick="backToMenu()">Menu</button>
+        </div>
+      </div>
+      ${last ? `<details class="disclosure result-details"><summary>Last song</summary>${lastLine}${flagBlockHTML(last.id, last.year)}</details>` : ``}
     `;
     showSheet();
     checkAchievements();
@@ -8694,9 +8738,7 @@ function overlayRunOver(){
   if(daily){
     title = 'Daily #'+(S.dailyNum || dailyNumber());
     recordRunProgress();   // final write (all placements done → no p flag)
-    const dTh = weekTheme(S.dailyNum || dailyNumber());
-    streakLine = `${dTh ? `<div class="muted" style="font-size:14px; margin-top:2px">${dTh.emoji} ${dTh.name}</div>` : ``}
-      <div style="font-size:15px; margin:6px 0 2px">🔥 <b>${loadDaily().streak||1}</b> day streak</div>`;
+    streakLine = `<span><b>${loadDaily().streak||1}</b> day streak</span>`;
     logFeed({ k:"daily", n: S.dailyNum || dailyNumber(), s: score, streak: loadDaily().streak||1 });
     bumpLife("dailies");
   } else if(chal){
@@ -8707,16 +8749,16 @@ function overlayRunOver(){
     if(beat!=null){
       // the prototype's duel verdict: a big you-vs-them scoreline with avatars
       let verdict, vcol = "var(--muted)";
-      if(score > beat){ duelWon = true; verdict = `🏆 You beat their ${beat}/${RUN_LEN}!`; vcol = "var(--good)"; }
-      else if(score < beat){ verdict = `They hold it — ${beat}/${RUN_LEN}`; vcol = "var(--bad)"; }
+      if(score > beat){ duelWon = true; verdict = `You win!`; vcol = "var(--good)"; }
+      else if(score < beat){ verdict = `They win this one`; vcol = "var(--bad)"; }
       else if(beatT){   // equal score: fastest time decides
         duelWon = myT < beatT;
-        verdict = myT < beatT ? `🏆 Tied — but you were faster! ⏱ ${fmtTime(myT)} vs ${fmtTime(beatT)}`
-                : myT > beatT ? `Tied — they were faster ⏱ ${fmtTime(beatT)} vs ${fmtTime(myT)}`
-                : `🤝 Dead even — same score, same time`;
+        verdict = myT < beatT ? `You win on time — ${fmtTime(myT)} vs ${fmtTime(beatT)}`
+                : myT > beatT ? `They win on time — ${fmtTime(beatT)} vs ${fmtTime(myT)}`
+                : `A draw — same score and time`;
         vcol = myT < beatT ? "var(--good)" : myT > beatT ? "var(--bad)" : "var(--muted)";
       }
-      else verdict = `🤝 Tied at ${beat}/${RUN_LEN}`;
+      else verdict = `It's a draw`;
       const oppName = (S.reactTo && S.reactTo.handle) || (S.challenge && S.challenge.fromHandle) || "them";
       const oppF = S.reactTo && _social && _social.friends && _social.friends.find(f => f.id === S.reactTo.user);
       streakLine = `<div style="display:flex; align-items:center; justify-content:center; gap:16px; margin:10px 0 2px">
@@ -8740,7 +8782,7 @@ function overlayRunOver(){
     } else logFeed({ k:"run", kind:"challenge", s: score });   // fresh challenge run
   } else {
     const best = loadBest();
-    if(score > (best.turbo||0)){ best.turbo = score; saveBest(best); streakLine = `<div style="color:var(--good); font-weight:700; font-size:14px; margin:6px 0">🎉 New turbo best!</div>`; }
+    if(score > (best.turbo||0)){ best.turbo = score; saveBest(best); streakLine = `<div class="result-badge">New Turbo best!</div>`; }
     if(standardDecksOnly()){ bumpBSync("t", score); if(LB.url && loadProfile()) socialGet(); }
     if(S.players.length === 1) logFeed({ k:"run", kind:"turbo", s: score });   // solo turbo → recent games
   }
@@ -8753,36 +8795,46 @@ function overlayRunOver(){
   let sentLine = "";
   if(S.chalTarget && LB.url && setIdx && setIdx.length >= 2){
     sendChal(S.chalTarget.user, chalKey(setIdx), score, me.timeMs||0);
-    sentLine = `<div style="margin:12px auto 4px; max-width:320px; padding:12px 14px; border-radius:14px; background:rgba(94,224,214,.10); border:1px solid rgba(94,224,214,.35)">
-      <div style="font-size:24px" aria-hidden="true">⚔️</div>
-      <div style="font-weight:700; font-size:16px; color:var(--cyan); margin-top:2px">Challenge sent to ${esc(S.chalTarget.handle)}!</div>
-      <div class="muted" style="font-size:14px; margin-top:3px">You set <b style="color:var(--text)">${score}/${RUN_LEN}</b> to beat — you'll hear about it when they play.</div>
-    </div>`;
+    sentLine = `<div class="result-meta" style="color:var(--cyan)">Challenge sent to ${esc(S.chalTarget.handle)}</div>`;
   }
   // pass-on data for openPassOnSheet (one button instead of a row of friend chips)
   S.passSet = (setIdx && setIdx.length >= 2) ? { idx: setIdx.slice(), score, timeMs: me.timeMs||0 } : null;
   const isDuel = chal && S.challenge && S.challenge.beat != null;
   const isInboxDuel = chal && S.challenge && S.challenge.msgId;
   sheet.innerHTML = `
-    <div class="winner-emoji">${perfect ? '🏆' : daily ? '📅' : chal ? '🎯' : '⚡'}</div>
-    <div class="verdict ${score>=3?'good':'bad'}" style="margin-top:6px">${title}</div>
-    ${isDuel ? streakLine : `<div class="reveal-yr" style="font-size:54px; margin:8px 0 2px; color:${score>=3?'var(--good)':'var(--bad)'}">${score}/${RUN_LEN}</div>`}
-    <div style="font-size:20px; letter-spacing:3px; margin:6px 0">${squares(me)} <span class="muted" style="font-size:14px; letter-spacing:0">· ⏱ ${fmtTime(me.timeMs)}</span></div>
-    ${(solo && S.runLog && S.runLog.length) ? `<details style="margin:8px auto 2px; max-width:320px">
-      <summary class="muted" style="cursor:pointer; font-size:12px; list-style-position:inside">Show the songs</summary>
-      <div id="runRecap" style="margin-top:6px; text-align:left">
+    <div class="result-kicker">${title}</div>
+    ${isDuel ? streakLine : `<div class="result-score">${score}<small>/${RUN_LEN}</small></div><div class="result-label">songs placed</div>`}
+    ${!daily && !isDuel ? streakLine : ``}
+    <div class="result-progress" role="img" aria-label="${(me.results||[]).map((ok,i)=>`Song ${i+1}: ${ok?'correct':'missed'}`).join(', ')}">${squares(me)}</div>
+    <div class="result-meta"><span>${fmtTime(me.timeMs)} total</span>${daily ? streakLine : ``}</div>
+    ${sentLine}
+    ${isInboxDuel ? `<div class="result-meta" style="color:var(--good)">Result sent to ${esc(S.challenge.fromHandle || 'your friend')}</div>` : ``}
+    ${daily && LB.url ? `<div id="lbline" class="result-rank">Loading rank…</div>` : ``}
+    <div class="result-actions">
+      ${daily ? `<button class="btn pink" onclick="shareDaily()">${ico('swords',1)} Challenge friends</button>`
+        : isInboxDuel ? `<button class="btn pink" onclick="closeOverlay(); challengeFriend('${S.reactTo ? S.reactTo.user : ''}')">${ico('swords',1)} Rematch</button>`
+        : isDuel && canChallenge ? `<button class="btn pink" onclick="shareChallenge(${score})">${ico('share',1)} Send result</button>`
+        : chal && canChallenge ? `<button class="btn pink" onclick="openPassOnSheet()">${ico('swords',1)} Challenge friends</button>`
+        : !chal ? `<button class="btn pink" onclick="playAgain()">Play again</button>` : ``}
+      <div class="result-links">
+        ${isDuel && S.passSet ? `<button class="btn ghost" onclick="openPassOnSheet()">Pass on</button>` : ``}
+        ${!daily && !chal && canChallenge ? `<button class="btn ghost" onclick="openPassOnSheet()">Challenge friends</button>` : ``}
+        ${!daily && !chal ? `<button class="btn ghost" onclick="backToSetup()">Change setup</button>` : ``}
+        <button class="btn ghost" onclick="backToMenu()">Menu</button>
+      </div>
+    </div>
+    ${(S.runLog && S.runLog.length) || last || (!daily && canChallenge && LB.url) ? `<details class="disclosure result-details">
+      <summary>Song recap</summary>
+      ${S.runLog && S.runLog.length ? `<div id="runRecap" style="margin-top:6px; text-align:left">
       ${S.runLog.map(r=>`<div style="display:flex; gap:8px; align-items:center; font-size:14px; padding:3px 0">
         <span aria-hidden="true">${r.ok?'🟩':'🟥'}</span>
         <b style="font-family:var(--mono); flex:0 0 auto">${r.year}</b>
-        <span class="muted" style="flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">${esc(r.name)} — ${esc(r.artist)}</span>
+        <span class="muted" style="flex:1; min-width:0; overflow-wrap:anywhere">${esc(r.name)} — ${esc(r.artist)}</span>
       </div>`).join("")}
-      ${chal && LB.url ? `<div id="chalBoard"></div>` : ``}</div></details>` : ``}
-    ${S.runLog && S.runLog.length ? `` : lastLine}
-    ${isDuel ? `` : streakLine}
-    ${sentLine}
-    ${(!chal && !daily && canChallenge) && LB.url ? `<div id="chalBoard"></div>` : ``}
-    ${daily && LB.url ? `<div id="lbline" style="font-size:14px; margin:6px 0">🌍 …</div>` : ``}
-    ${last ? flagBlockHTML(last.id, last.year) : ``}
+      </div>` : lastLine}
+      ${!daily && canChallenge && LB.url ? `<div id="chalBoard"></div>` : ``}
+      ${last ? flagBlockHTML(last.id, last.year, 'Report the last song') : ``}
+    </details>` : ``}
     ${(rt => rt ? `
       <details class="disclosure"><summary>React to ${esc(rt.handle)}</summary>
       <div class="row wrap" style="gap:6px; justify-content:center; margin-top:6px" id="reactRow">
@@ -8792,24 +8844,11 @@ function overlayRunOver(){
       <div class="row" id="reactMore" style="display:none; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:6px">
         ${REACT_EMOJI.slice(6).map(e=>`<button class="btn sm" onclick="sendReact('${rt.user}','${e}',${score}); document.querySelectorAll('#reactRow button, #reactMore button').forEach(b=>b.disabled=true); this.style.borderColor='var(--gold)'">${e}</button>`).join("")}
       </div></details>` : ``)(reactTarget())}
-    ${isInboxDuel ? `<div style="color:var(--good); font-weight:700; font-size:14px; margin:12px 0 2px">✓ Result sent back to ${esc(S.challenge.fromHandle || 'your friend')}</div>` : ``}
-    ${daily ? `<button class="btn pink" style="margin-top:14px" onclick="shareDaily()">${ico('swords',1)} Challenge friends</button>` : ``}
-    ${isInboxDuel ? `<div class="row" style="gap:8px; margin-top:12px">
-      <button class="btn pink" onclick="closeOverlay(); challengeFriend('${S.reactTo ? S.reactTo.user : ''}')">${ico('swords',1)} Rematch</button>
-      ${S.passSet ? `<button class="btn" onclick="openPassOnSheet()">${ico('share',1)} Pass on</button>` : ``}
-    </div>` : ``}
-    ${(isDuel && !isInboxDuel && canChallenge) ? `<div class="row" style="gap:8px; margin-top:12px">
-      <button class="btn pink" onclick="shareChallenge(${score})">${ico('share',1)} Send your result back</button>
-      ${S.passSet ? `<button class="btn" onclick="openPassOnSheet()">Pass on</button>` : ``}
-    </div>` : ``}
-    ${(!daily && !isDuel && canChallenge) ? `<button class="btn pink" style="margin-top:12px" onclick="openPassOnSheet()">${ico('swords',1)} Challenge friends</button>` : ``}
-    ${(!daily && !chal) ? `<button class="btn" style="margin-top:8px" onclick="playAgain()">⚡ Run it again</button>` : ``}
-    <div class="sheetfoot"><button class="btn ghost" style="margin-top:0" onclick="backToSetup()">Done</button></div>
   `;
   showSheet();
   checkAchievements();
   if(daily && LB.url) lbSubmitDaily(score, me.timeMs||0, S.dailyNum).then(b=>{
-    const el = document.getElementById("lbline"); if(el) el.innerHTML = lbLineHTML(b);
+    const el = document.getElementById("lbline"); if(el) el.innerHTML = lbLineHTML(b, true);
     // remember the best world rank ever reached — powers the Champion badge
     if(b && b.me && Number.isSafeInteger(b.me.rank) && b.me.rank > 0){
       const d = loadDaily();
@@ -9029,14 +9068,18 @@ function overlayTutOver(){
   sfx("win");
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
-    <div class="winner-emoji">🎓</div>
-    <div class="verdict good" style="margin-top:2px">THAT'S YEARWORM!</div>
-    ${last ? `<div class="muted" style="font-size:14px; margin-top:6px">last song: <b style="color:${last.correct?'var(--good)':'var(--bad)'}">${last.correct?'✓':'✗'} ${last.year}</b> — ${esc(last.name)} · ${esc(last.artist)}</div>` : ``}
-    <div style="font-size:19px; letter-spacing:2px; margin:10px 0 2px">${sq}</div>
-    <div style="font-size:14px; margin:6px 0 2px">You placed <b style="color:var(--good)">${me.hits||0}/${TUT_LEN}</b> — and that's the whole game.</div>
-    <div class="muted" style="font-size:14px; margin:10px 4px 2px">Every mode is this loop with a twist. The <b style="color:var(--text)">Daily</b> is the same ${RUN_LEN} songs for the whole world, once a day — start your streak:</div>
-    <button class="btn primary" style="margin-top:14px" onclick="closeOverlay(); startDaily()">${ico('cal',1)} Play today's Daily</button>
-    <button class="btn ghost" style="margin-top:8px" onclick="backToSetup()">Explore the modes</button>`;
+    <div class="result-kicker">First round complete</div>
+    <div class="result-score">${me.hits||0}<small>/${TUT_LEN}</small></div>
+    <div class="result-label">songs placed</div>
+    <div class="result-progress" aria-hidden="true">${sq}</div>
+    <p class="muted" style="font-size:16px; margin:16px 0 0">Ready for the Daily? Five new songs, every day.</p>
+    <div class="result-actions">
+      <button class="btn primary" onclick="closeOverlay(); startDaily()">${ico('cal',1)} Play today's Daily</button>
+      <div class="result-links"><button class="btn ghost" onclick="backToMenu()">Explore the modes</button></div>
+    </div>
+    ${last ? `<details class="disclosure result-details"><summary>Last song</summary>
+      <div style="font-size:16px"><b style="color:${last.correct?'var(--good)':'var(--bad)'}">${last.correct?'✓':'✗'} ${last.year}</b> — ${esc(last.name)} · ${esc(last.artist)}</div>
+    </details>` : ``}`;
   showSheet();
   checkAchievements();
 }
@@ -9347,7 +9390,7 @@ function backToSetup(){ bgRun++; S.loadingMore=false;
   }
   closeOverlay(); S.current=null; const a=aud(); if(a) a.pause(); S.playing=false; renderSetup(); }
 // "Quit to menu": same teardown, but land on the Play tab instead of the mode's config screen
-function backToMenu(){ _playScreen = null; backToSetup(); }
+function backToMenu(){ _tab = "play"; _playScreen = null; backToSetup(); }
 
 /* ---------- boot ---------- */
 /* Arriving on a playable challenge link: don't make the guest hunt for the
@@ -9357,13 +9400,14 @@ function overlayChallengeInvite(){
   const beat = S.challenge.beat;
   const sheet = document.getElementById("sheet");
   sheet.innerHTML = `
-    <div class="winner-emoji">🎯</div>
-    <div class="verdict" style="color:var(--cyan)">YOU'VE BEEN CHALLENGED</div>
-    <div class="muted" style="font-size:14px; line-height:1.5">${beat != null
-      ? `A friend scored <b style="color:var(--text)">${beat}/${RUN_LEN}</b>${S.challenge.beatTime ? ` in ${fmtTime(S.challenge.beatTime)}` : ``} — beat them on the same ${RUN_LEN} songs.`
-      : `${RUN_LEN} songs, picked by a friend.`} One shot, the clock counts ⏱</div>
-    <button class="btn primary" style="margin-top:16px" onclick="closeOverlay(); startChallenge();">▶ Accept challenge</button>
-    <button class="btn ghost sm" style="margin-top:8px" onclick="closeOverlay()">Not now</button>`;
+    <div class="result-kicker">Friend challenge</div>
+    <div class="verdict" style="color:var(--cyan)">${beat != null ? `Can you beat ${beat}/${RUN_LEN}?` : 'Take the challenge'}</div>
+    <p class="muted" style="font-size:16px; margin:12px 0 0">${RUN_LEN} songs. One try. Fastest time breaks a tie.</p>
+    ${beat != null && S.challenge.beatTime ? `<div class="result-meta">Their time: ${fmtTime(S.challenge.beatTime)}</div>` : ``}
+    <div class="result-actions">
+      <button class="btn primary" onclick="closeOverlay(); startChallenge();">Accept challenge</button>
+      <div class="result-links"><button class="btn ghost" onclick="closeOverlay()">Not now</button></div>
+    </div>`;
   showSheet();
 }
 function boot(){

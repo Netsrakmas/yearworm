@@ -84,4 +84,17 @@ test('audio events update truthful status without rebuilding the playing screen'
     g.run(state); assert.equal(g.nodes.get('playbackStatus').textContent, status);
   }
 });
+test('results keep replay, setup, and the Play menu as distinct destinations', () => {
+  const g = game();
+  g.run(`openMode('survival'); S.mode='survival'; S.score=9; S.bestStreak=6; overlayGameOver(false);
+    let restarted=0; onStart=()=>restarted++; playAgain();`);
+  assert.equal(g.run('restarted'), 1);
+  assert.equal(g.run('loadBest().cards'), 9);
+  g.run('backToSetup()');
+  assert.match(g.nodes.get('app').innerHTML, /id="modeDeckPicker"/);
+  g.run(`_tab='friends'; backToMenu()`);
+  assert.equal(g.run('_tab'), 'play');
+  assert.equal(g.run('_playScreen'), null);
+  assert.match(g.nodes.get('app').innerHTML, /class="modelist"/);
+});
 console.log(`INTERFACE REGRESSION: ${passed} tests passed`);

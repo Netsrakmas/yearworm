@@ -63,6 +63,7 @@ const server = http.createServer((req,res)=>{
   console.log('reveal: Apple Music attribution link present ✓');
 
   // open the flag details, correct the year, then report
+  await pg.click('.reveal-details > summary');
   await pg.click('.report-yr summary');
   const oldYear = await pg.$eval('#sheet .rev-yr', e=>Number(e.value));
   await pg.$eval('#sheet .rev-yr', e=>{ e.value = String(Number(e.value)+1); e.dispatchEvent(new Event('change')); });
@@ -104,6 +105,7 @@ const server = http.createServer((req,res)=>{
   const sReveal = await pg.$eval('#sheet', e=>e.innerHTML);
   if(!/report-yr/.test(sReveal)) throw new Error('survival reveal is missing the year-report block');
   if(!/❤️|🖤/u.test(sReveal)) throw new Error('survival reveal lost its hearts');
+  await pg.click('.reveal-details > summary');
   await pg.click('.report-yr summary');
   if(!await pg.$('#sheet .rev-yr')) throw new Error('survival year input not reachable');
   console.log('survival reveal: hearts + year-report block present ✓');

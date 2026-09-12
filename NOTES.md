@@ -15,6 +15,22 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.50.2 — clearer results (private preview)
+- Survival leads with songs placed, a personal-best label when earned, and
+  one streak line. Remove the oversized icon, RUN OVER, and duplicate records.
+- Daily, Turbo, challenges, and Pass & Play use the same compact hierarchy:
+  score or winner, supporting facts, one main action, and smaller navigation.
+  Keep song recaps, reports, reactions, and challenge standings expandable.
+- Song reveals keep the answer and next turn prominent; music links and
+  reporting move into Song details. Shorten tutorial and challenge invitations.
+- Retain Bricolage headings and Rubik controls. Smaller secondary modal icons;
+  no game rules, catalogue, Daily source, or backend changes.
+- Private Sites preview only; GitHub Pages is not updated.
+- Validation: 34 checks across interface, Daily-rank, and deck-region suites;
+  38 rendered states checked for balanced HTML, unique IDs, and valid event
+  handlers. Existing browser scripts updated for the new labels/disclosures;
+  those browser scripts were not run in this environment.
+
 ## 4.50.1 — more expressive type (private preview)
 - Replace the uniform DM Sans treatment with Bricolage Grotesque for large
   headings, mode names, deck titles, and prominent numbers. Rubik returns for

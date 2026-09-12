@@ -76,7 +76,7 @@ async function newPage(browser, url){
   await pg.click('.slot.active');
   await pg.waitForSelector('#overlay.show',{timeout:8000});
   let rev = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/locks (onto the line )?at its true year/.test(rev)) throw new Error('first reveal not coached: '+rev.slice(0,240));
+  if(!/joins the timeline at its true year/.test(rev)) throw new Error('first reveal not coached: '+rev.slice(0,240));
   if(/Wrong year in our data/.test(rev)) throw new Error('flag block should be hidden in the tutorial');
   await pg.click('#sheet .btn.primary');
   await pg.waitForFunction(()=>!document.getElementById('overlay').classList.contains('show'), null, {timeout:8000}).catch(()=>{});
@@ -85,15 +85,15 @@ async function newPage(browser, url){
   await pg.click('.slot.active');
   await pg.waitForSelector('#overlay.show',{timeout:8000});
   rev = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/gaps get tighter/.test(rev)) throw new Error('second reveal not coached: '+rev.slice(0,240));
+  if(!/find the gap between the years/.test(rev)) throw new Error('second reveal not coached: '+rev.slice(0,240));
   await pg.click('#sheet .btn.primary');
   await pg.waitForFunction(()=>!document.getElementById('overlay').classList.contains('show'), null, {timeout:8000}).catch(()=>{});
   await pg.waitForSelector('.slot.active',{timeout:30000});
   await pg.click('.slot.active');
   await pg.waitForSelector('#overlay.show',{timeout:8000});
   const fin = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/THAT'S YEARWORM!/.test(fin)) throw new Error('finish sheet missing: '+fin.slice(0,240));
-  if(!/You placed \d\/3/.test(fin)) throw new Error('finish score not /3: '+fin.slice(0,240));
+  if(!/First round complete/.test(fin)) throw new Error('finish sheet missing: '+fin.slice(0,240));
+  if(!/\d\/3 songs placed/.test(fin)) throw new Error('finish score not /3: '+fin.slice(0,240));
   if(!/Play today's Daily/.test(fin) || !/Explore the modes/.test(fin)) throw new Error('finish CTAs missing: '+fin.slice(0,240));
   console.log('three placements: coached reveals + finish sheet with CTAs OK');
 

@@ -76,7 +76,7 @@ const server = http.createServer((req,res)=>{
   await pg.click('#sheet .btn.primary');
   await pg.waitForTimeout(400);
   const sheet = await pg.$eval('#sheet', e=>e.innerText.replace(/\s+/g,' '));
-  if(!/P1 WINS/.test(sheet)) throw new Error('expected P1 (faster) to win the 10-10 tie: '+sheet.slice(0,180));
+  if(!/P1 wins/.test(sheet)) throw new Error('expected P1 (faster) to win the 10-10 tie: '+sheet.slice(0,180));
   if(!/fastest time decides/i.test(sheet)) throw new Error('tie-break note missing: '+sheet.slice(0,180));
   console.log('tie 10-10 → fastest (P1) wins, tie-break note shown OK');
   console.log('FAIR-ROUND TEST PASS ✓');
