@@ -142,7 +142,7 @@ test('hiding the Dutch deck preserves other selected and custom decks', () => {
   g.run('S.selectedIds = ["classicrock"]; setDutchDeckPreference("show")');
   assert.deepEqual(g.json('S.selectedIds'), ['classicrock']);
 });
-test('all three mode setups offer the override and render balanced visible pages', () => {
+test('all three mode setups expose the full deck grid and regional override', () => {
   for (const pref of ['show', 'hide']) {
     const g = game({ entries: { tl_dutchdeck: pref } });
     for (const mode of ['survival', 'turbo', 'passplay']) {
@@ -151,10 +151,12 @@ test('all three mode setups offer the override and render balanced visible pages
       assert.match(screen, /<summary>Regional decks<\/summary>/);
       assert.match(screen, /onchange="setDutchDeckPreference\(this.value\)"/);
       assert.equal(screen.includes('data-id="top10"'), pref === 'show');
+      assert.match(screen, /<section id="modeDeckPicker"/);
+      assert.doesNotMatch(screen, /<details[^>]*id="modeDeckPicker"/);
     }
-    const pages = [...g.run('deckCarouselHTML()').matchAll(/class="deck-page">([\s\S]*?)<\/div>/g)]
-      .map(m => [...m[1].matchAll(/data-id=/g)].length);
-    assert.deepEqual(pages, pref === 'show' ? [4, 3] : [6]);
+    const grid = g.run('deckCarouselHTML()');
+    assert.equal([...grid.matchAll(/data-id=/g)].length, pref === 'show' ? 7 : 6);
+    assert.doesNotMatch(grid, /deck-page|hidden/);
   }
 });
 test('hidden outgoing challenge preference falls back to Every Era and can be restored', () => {

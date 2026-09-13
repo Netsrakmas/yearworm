@@ -15,7 +15,30 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
-## 4.50.3 — consistent gameplay and profile type (private preview)
+## 4.51.0 — visible choices and cleaner mobile layout (private preview)
+- Replace repeated logo/tagline/page-title stacks with compact tab headers.
+  On Play, distribute the five mode cards through the available viewport
+  height and keep attribution near navigation; short screens still scroll.
+- Align the Profile avatar, name/code and edit button in fixed grid columns.
+  Keep all six stats visible with matching rows. Flatten Settings; show account
+  linking there, and preview an earned achievement plus a nearby goal.
+- Restore all five rankings as visible, clearly scoped sections. Move Add a
+  friend above the list and expose Duel standings. Preserve both open and
+  closed add-form state, typed searches and codes during asynchronous refresh.
+- Show all six/seven standard decks in one setup grid. Keep custom decks and
+  creation visible. Show outgoing challenge music before playing, including
+  direct friend challenges; cancelling a rematch restores its original results.
+- Restore the placement instruction and always show the final song answer.
+  Keep full recap optional; expose challenge standings, three quick reactions
+  and a direct report disclosure. Incoming song sets and Daily draws are intact.
+- Validation: 39 interface, Daily-rank and deck-region checks passed, including
+  comparison of shared song sets with 4.50.3. Checked balanced markup, unique
+  IDs/attributes and 332 event handlers across 55 generated states. Two design
+  agents reviewed the implementation source. No live browser or phone QA.
+- Publish only to the existing private Sites preview for review. Public
+  playyearworm.com remains on 4.50.3 until separately approved.
+
+## 4.50.3 — consistent gameplay and profile type (subsequently published)
 - Gameplay and Profile use Rubik for controls, labels, years, and statistics.
   Use a shared 14 / 16 / 24px scale, lighter button weights, and reserve the
   expressive heading font for titles and results.
