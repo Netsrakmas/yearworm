@@ -15,6 +15,12 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.51.1 — styled challenge music selectors (private preview)
+- Match the Profile and challenge-start music selectors to the dark app
+  controls: Rubik, rounded surface, 52px touch target, inset chevron, and a
+  visible keyboard focus ring. Keep native selection and the existing handlers.
+- Private preview update only; public playyearworm.com remains on 4.50.3.
+
 ## 4.51.0 — visible choices and cleaner mobile layout (private preview)
 - Replace repeated logo/tagline/page-title stacks with compact tab headers.
   On Play, distribute the five mode cards through the available viewport
