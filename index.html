@@ -653,7 +653,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.51.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.52.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -6069,6 +6069,7 @@ async function sendChal(to, set, score, timeMs){
   const r = await socialPost({ action:"challenge", to, set, score, timeMs });
   toast(r && r.ok ? "Challenge sent ⚔️" : "Couldn't send — use the share link instead.");
   if(r && r.ok){
+    beacon("challenge-shared");
     const f = _social && _social.friends && _social.friends.find(x => x.id === to);
     logFeed({ k:"chal-out", who: f && f.handle, s: score });
     bumpLife("sent");
@@ -6199,6 +6200,8 @@ async function playInboxChal(id){
   if(!m) return;
   const idx = String(m.payload && m.payload.set || "").split(".").map(Number).filter(n => Number.isFinite(n) && n >= 0);
   if(idx.length < 2){ socialPost({ action:"seen", ids:[id] }); toast("This challenge can't be played on this version."); return; }
+  if(idx.some(i => !stablePool()[i])){ toast("This challenge can't be played on this version."); return; }
+  beacon("challenge-opened");
   const prev = chalPlayed(idx);
   if(prev){
     // one shot per set: this exact set was already played (e.g. the daily) —
@@ -6213,7 +6216,7 @@ async function playInboxChal(id){
   // challenge stays in the inbox for a retry — it's consumed on the results screen
   // msgId marks this as a friend's direct challenge: the result goes back through
   // the server automatically, so we never show a "share a link back" step for it
-  S.challenge = { idx, beat: (m.payload.score != null ? m.payload.score : null), beatTime: m.payload.timeMs || null, msgId: m.id, fromHandle: m.handle };
+  S.challenge = { idx, incoming: true, beat: (m.payload.score != null ? m.payload.score : null), beatTime: m.payload.timeMs || null, msgId: m.id, fromHandle: m.handle };
   const from = { user: m.from, handle: m.handle, msgId: m.id };
   await startChallenge();
   S.reactTo = from;   // after startGame (which clears it) — offer a reaction on the results screen
@@ -6773,25 +6776,39 @@ async function chalNews(){
 /* GoatCounter events: page views count automatically; these answer "do shared
    links convert into games?". Anonymous + cookieless; retries because the
    analytics script loads async and may land after boot. */
-/* Funnel beacons: landed → started a round → finished one. Deliberately sends
-   NO device token and no session id — the server only increments a per-day
-   tally, so this cannot follow anyone. Each step fires at most once per page
-   load. Without it a marketing push reports "3 of 100 stayed" and you can't
-   tell a boring game from a leaking first screen. */
+/* Anonymous per-page funnel, with no token, URL, name or session identifier.
+   Freeze the new-player cohort before play writes local lifetime statistics.
+   Reloads are separate visits; resumes are not new games. Nothing is persisted
+   for measurement and analytics failures must never affect gameplay. */
 const _beaconed = new Set();
+const _funnelFresh = !store.get("tl_life") && !store.get("tl_daily") && !store.get("tl_game");
+let _gamesStarted = 0, _measuredRun = false, _incomingRun = false;
 function beacon(step){
   if(!LB.url || _beaconed.has(step)) return;
   _beaconed.add(step);
-  // "new" = this device has no record of ever having played anything
-  const fresh = !store.get("tl_life") && !store.get("tl_daily");
   // .catch on the PROMISE, not just try/catch: a failed fetch rejects rather
   // than throwing, and an unhandled rejection hits the global error handler —
   // which showed players "Something glitched" because a metric didn't send.
   const send = st => { try{ fetch(LB.url + "/beacon", { method:"POST", keepalive:true,
+    credentials:"omit", referrerPolicy:"no-referrer",
     headers:{ "content-type":"application/json" }, body: JSON.stringify({ step: st }) })
     .catch(()=>{}); }catch(e){} };
   send(step);
-  if(fresh) send(step + "-new");
+  if(_funnelFresh && ["land","start","finish","second-start"].includes(step)) send(step + "-new");
+}
+function measureGameStart(){
+  _measuredRun = true;
+  _incomingRun = S.mode === "challenge" && !!(S.challenge && S.challenge.incoming);
+  _gamesStarted++;
+  beacon("start");
+  if(_gamesStarted === 2) beacon("second-start");
+}
+function measureGameFinish(){
+  if(!_measuredRun) return;
+  beacon("finish");
+  if(_incomingRun && S.mode === "challenge" && S.players[0] && S.players[0].tries >= RUN_LEN)
+    beacon("challenge-played");
+  _measuredRun = false;
 }
 function track(name, tries){
   try{
@@ -7469,6 +7486,7 @@ function discardSaved(){ clearGame(); renderSetup(); }
 function resumeSaved(){
   const d = loadSaved();
   if(!d){ toast("No saved game to resume."); return; }
+  _measuredRun = false; _incomingRun = false;
   S.target = d.target||S.target;
   S.turn = d.turn||0;
   S.deck = d.deck||[];
@@ -7498,7 +7516,7 @@ function resumeSaved(){
 }
 
 function startGame(){
-  beacon("start");   // a round is genuinely beginning — songs resolved, deck ready
+  measureGameStart();   // songs resolved, deck ready; failed loads never get here
   bgRun++;   // invalidate any background loader from a previous game
   S.reactTo = null;   // reactions only belong to a run started from the inbox
   S.chalTarget = null; // auto-send only belongs to a run started via a friend's ⚔️
@@ -8642,7 +8660,7 @@ function overlayReveal(correct, p){
 }
 
 function overlayGameOver(deckEmpty, winner){
-  beacon("finish");   // a round was played through to the end
+  measureGameFinish();
   clearGame();
   bumpLife("games");   // classic race / survival end counts as a played game
   if(S.mode==="survival"){
@@ -8712,7 +8730,7 @@ function reactTarget(){
 }
 /* ---------- run results (turbo / daily / challenge) ---------- */
 function overlayRunOver(){
-  beacon("finish");   // a round was played through to the end
+  measureGameFinish();
   if(S.mode==="tut"){ overlayTutOver(); return; }   // safety: a dry deck mid-tutorial still ends on the tutorial sheet
   S.current = null;
   bumpLife("games");   // a finished run counts as a played game
@@ -9019,7 +9037,7 @@ function senderTag(){ const p = loadProfile(); return p && p.id ? "&f=" + p.id :
 function shareChallengeIdx(idx, score, tSec){
   const url = "https://playyearworm.com/#c=" + idx.join(".")
             + (score!=null ? "&s="+score : "") + (tSec ? "&t="+tSec : "") + senderTag();
-  shareText(`I scored ${score}/${RUN_LEN}${tSec?` in ${fmtTime(tSec*1000)}`:""} on Yearworm 🎧 — beat me on the SAME ${RUN_LEN} songs:\n${url}`);
+  return shareText(`I scored ${score}/${RUN_LEN}${tSec?` in ${fmtTime(tSec*1000)}`:""} on Yearworm 🎧 — beat me on the SAME ${RUN_LEN} songs:\n${url}`, "challenge-shared");
 }
 // reply flavor: same link (still playable/forwardable), but the message reads
 // as a result, not as a new challenge — the sender already lost/won/tied
@@ -9028,7 +9046,7 @@ function shareResultBack(idx, score, tSec, beat){
   const verdict = score > beat ? `I beat your ${beat}/${RUN_LEN} 🏆`
                 : score < beat ? `your ${beat}/${RUN_LEN} holds 👑`
                 : `tied at ${beat}/${RUN_LEN} 🤝`;
-  shareText(`I played your Yearworm challenge 🎧 — ${score}/${RUN_LEN}${tSec?` in ${fmtTime(tSec*1000)}`:""}, ${verdict}\nOpen for the verdict (or pass it on):\n${url}`);
+  return shareText(`I played your Yearworm challenge 🎧 — ${score}/${RUN_LEN}${tSec?` in ${fmtTime(tSec*1000)}`:""}, ${verdict}\nOpen for the verdict (or pass it on):\n${url}`, "challenge-shared");
 }
 function shareChallengeBack(){
   const prev = S.challenge && chalPlayed(S.challenge.idx);
@@ -9036,17 +9054,28 @@ function shareChallengeBack(){
   if(S.challenge.beat != null && !prev.m) shareResultBack(S.challenge.idx, prev.s, Math.round((prev.t||0)/1000), S.challenge.beat);
   else shareChallengeIdx(S.challenge.idx, prev.s, Math.round((prev.t||0)/1000));
 }
-function shareText(text){
-  if(navigator.share){ navigator.share({ text }).catch(()=>{}); }
-  else { try{ navigator.clipboard.writeText(text); toast("Copied — paste it in the group chat 📋"); }catch(e){ toast(text); } }
+async function shareText(text, event){
+  try{
+    if(navigator.share) await navigator.share({ text });
+    else {
+      if(!navigator.clipboard){ toast(text); return false; }
+      await navigator.clipboard.writeText(text);
+      toast("Copied — paste it in the group chat 📋");
+    }
+    if(event) beacon(event);
+    return true;
+  }catch(e){
+    if(!navigator.share) toast(text);
+    return false;   // cancelling a share or a failed clipboard write is not a share
+  }
 }
 // a #c=<i0.i1...>&s=<score> link carries the exact run: indices into the stable pool
 function parseChallengeHash(){
-  const m = (location.hash||"").match(/c=([\d.]+)(?:&s=(\d+))?(?:&t=(\d+))?(?:&f=([a-f0-9]{16,64}))?/);
+  const m = (location.hash||"").match(/(?:^#|&)c=(\d+(?:\.\d+)+)(?:&s=(\d+))?(?:&t=(\d+))?(?:&f=([a-f0-9]{16,64}))?(?=&|$)/);
   if(!m) return null;
   const idx = m[1].split(".").map(Number).filter(n => Number.isFinite(n) && n>=0);
-  if(idx.length < 2) return null;
-  return { idx: idx.slice(0, RUN_LEN+1), beat: m[2]!=null ? Math.min(RUN_LEN, parseInt(m[2],10)) : null,
+  if(idx.length < 2 || idx.length > RUN_LEN+1 || idx.some(i => !stablePool()[i])) return null;
+  return { idx, incoming: true, beat: m[2]!=null ? Math.min(RUN_LEN, parseInt(m[2],10)) : null,
            beatTime: m[3]!=null ? parseInt(m[3],10)*1000 : null,
            fromUser: m[4] || null };   // sender id: enables react-back when they're a friend
 }
@@ -9101,6 +9130,7 @@ function finalAnswerHTML(last){
     <div class="answer-song">${esc(last.name)} <span class="muted">— ${esc(last.artist)}</span></div></div>`;
 }
 function overlayTutOver(){
+  measureGameFinish();
   S.current = null;
   bumpLife("games");
   renderGame();   // final board repaints behind the sheet, last card included
@@ -9463,7 +9493,7 @@ function boot(){
     try{ history.replaceState(null, "", location.pathname); }catch(e){}
   }
   S.challenge = parseChallengeHash();
-  if(S.challenge) track("open-challenge-link");   // a shared link actually landed
+  if(S.challenge){ track("open-challenge-link"); beacon("challenge-opened"); }
   try{ S.yearOverrides = JSON.parse(store.get("tl_years")||"{}"); }catch(e){ S.yearOverrides = {}; }
   try{ S.customDecks = JSON.parse(store.get("tl_decks")||"[]")||[]; }catch(e){ S.customDecks = []; }
   S.selectedIds = [defaultDeckId()];

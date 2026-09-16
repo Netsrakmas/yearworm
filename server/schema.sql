@@ -169,10 +169,9 @@ CREATE TABLE IF NOT EXISTS dead_ids (
   at       INTEGER NOT NULL
 );
 
--- Funnel counters: how many people who LAND actually start a round, and how
--- many finish one. Counts only — no device token, no session id, nothing that
--- identifies anyone. Without this, a marketing push tells you "3 of 100 stayed"
--- and you cannot tell a boring game from a leaking funnel.
+-- Anonymous per-page counters: land/start/finish/second-start (also -new), and
+-- challenge-shared/opened/played. Counts only: no device/session/challenge ID,
+-- name, IP, or individual event timestamp. New events need no schema change.
 CREATE TABLE IF NOT EXISTS funnel (
   day  INTEGER NOT NULL,
   step TEXT NOT NULL,

@@ -983,11 +983,14 @@ async function chalBoardResp(env, setkey, device, cors){
 const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
 // "-new" = this visitor had never played anything before. That series is the
 // one that matters after a marketing push; the plain series includes regulars.
-const FUNNEL_STEPS = new Set(["land","land-new","start","start-new","finish","finish-new"]);
+const FUNNEL_STEPS_BASE = ["land", "start", "finish", "second-start"];
+const FUNNEL_STEPS = new Set([...FUNNEL_STEPS_BASE, ...FUNNEL_STEPS_BASE.map(s => s + "-new"),
+  "challenge-shared", "challenge-opened", "challenge-played"]);
 async function funnelStats(env, today, days){
+  let available = true;
   const rows = await (async()=>{ try{
-    return ((await env.DB.prepare("SELECT day, step, n FROM funnel WHERE day > ?1").bind(today - days).all()).results) || [];
-  }catch(e){ return []; } })();
+    return ((await env.DB.prepare("SELECT day, step, n FROM funnel WHERE day > ?1 AND day <= ?2").bind(today - days, today).all()).results) || [];
+  }catch(e){ available = false; return []; } })();
   const tot = {}, byDay = {};
   for(const r of rows){
     tot[r.step] = (tot[r.step] || 0) + r.n;
@@ -995,13 +998,19 @@ async function funnelStats(env, today, days){
   }
   const g = k => tot[k] || 0;
   return {
-    days,
+    days, available,
     all:   { land: g("land"),     start: g("start"),     finish: g("finish"),
+             secondStart: g("second-start"), secondStartPct: pct(g("second-start"), g("start")),
              startPct: pct(g("start"), g("land")), finishPct: pct(g("finish"), g("start")) },
     fresh: { land: g("land-new"), start: g("start-new"), finish: g("finish-new"),
+             secondStart: g("second-start-new"), secondStartPct: pct(g("second-start-new"), g("start-new")),
              startPct: pct(g("start-new"), g("land-new")), finishPct: pct(g("finish-new"), g("start-new")) },
+    challenges: { shared: g("challenge-shared"), opened: g("challenge-opened"), played: g("challenge-played") },
     byDay: Object.keys(byDay).map(Number).sort((a,b)=>b-a).map(d => ({
-      day: d, land: byDay[d]["land-new"] || 0, start: byDay[d]["start-new"] || 0, finish: byDay[d]["finish-new"] || 0 })),
+      day: d, land: byDay[d]["land-new"] || 0, start: byDay[d]["start-new"] || 0, finish: byDay[d]["finish-new"] || 0,
+      secondStart: byDay[d]["second-start-new"] || 0,
+      shared: byDay[d]["challenge-shared"] || 0, opened: byDay[d]["challenge-opened"] || 0,
+      played: byDay[d]["challenge-played"] || 0 })),
   };
 }
 async function retention(env){
@@ -1047,7 +1056,7 @@ async function retention(env){
     "AND handle NOT LIKE '%Walrus' AND handle NOT LIKE '%Otter' AND handle NOT LIKE '%Llama' AND handle NOT LIKE '%Moose' " +
     "AND handle NOT LIKE '%Gecko' AND handle NOT LIKE '%Panda' AND handle NOT LIKE '%Ferret' AND handle NOT LIKE '%Narwhal' " +
     "AND handle NOT LIKE '%Raccoon' AND handle NOT LIKE '%Badger'")).n || 0;
-  const friended = (await one("SELECT COUNT(DISTINCT a) AS n FROM friends WHERE status='accepted'")).n || 0;
+  const friended = (await one("SELECT COUNT(*) AS n FROM (SELECT a FROM friends WHERE status='accepted' UNION SELECT b FROM friends WHERE status='accepted')")).n || 0;
   return { today, daily, survival, funnel: await funnelStats(env, today, 14),
     profiles: { claimed, named, stillGenerated: claimed - named, withFriends: friended } };
 }
@@ -1084,17 +1093,24 @@ th{color:#8b95ad;font-size:11.5px;font-weight:600;text-transform:uppercase;lette
 </div>
 <table><tr><th>day</th><th>players</th><th>new</th></tr>${r.survival.byDay.map(row).join('')}</table>
 
-<h2>First-timer funnel · last ${r.funnel.days} days</h2>
+<h2>First-timer funnel · last ${r.funnel.days} UTC days</h2>
+${!r.funnel.available ? '<p role="alert">Funnel data unavailable. Check the D1 funnel table before interpreting these numbers.</p>' : ''}
 <div class="g">
   ${big(r.funnel.fresh.land, 'landed', 'never played before')}
   ${big(r.funnel.fresh.startPct + '%', 'started a round', r.funnel.fresh.start + ' of ' + r.funnel.fresh.land)}
   ${big(r.funnel.fresh.finishPct + '%', 'finished it', r.funnel.fresh.finish + ' of ' + r.funnel.fresh.start)}
+  ${big(r.funnel.fresh.secondStartPct + '%', 'started a second game', r.funnel.fresh.secondStart + ' of ' + r.funnel.fresh.start + ' starters')}
 </div>
-<table><tr><th>day</th><th>landed</th><th>started</th><th>finished</th></tr>${
-  r.funnel.byDay.map(d=>`<tr><td>#${d.day}</td><td>${d.land}</td><td>${d.start}</td><td>${d.finish}</td></tr>`).join('')
+<table><tr><th>day</th><th>landed</th><th>started</th><th>finished</th><th>second game</th></tr>${
+  r.funnel.byDay.map(d=>`<tr><td>#${d.day}</td><td>${d.land}</td><td>${d.start}</td><td>${d.finish}</td><td>${d.secondStart}</td></tr>`).join('')
 }</table>
-<div class="note">If "landed" is high and "started" is low, the problem is the
-first screen, not the game. If they start but don't finish, it's the game.</div>
+<div class="note">Each event counts at most once per page load, not per person. First-timer status is fixed at page load using local play history. Second game means another new round in that page load; resuming a saved game does not count. Tutorials count as rounds. Blocked requests, cleared storage and crossing midnight can affect these approximate rates.</div>
+<h2>All visits · last ${r.funnel.days} UTC days</h2>
+<div class="g">${big(r.funnel.all.land, 'landed', 'page loads')}${big(r.funnel.all.start, 'started', 'at least one new round')}${big(r.funnel.all.finish, 'finished', 'at least one new round')}${big(r.funnel.all.secondStart, 'second game', 'same page load')}</div>
+<h2>Shared challenges · last ${r.funnel.days} UTC days</h2>
+<div class="g">${big(r.funnel.challenges.shared, 'shared', 'link copied, share accepted, or friend send succeeded')}${big(r.funnel.challenges.opened, 'opened', 'valid link or inbox challenge opened')}${big(r.funnel.challenges.played, 'played', 'recipient completed all 5 songs')}</div>
+<table><tr><th>day</th><th>shared</th><th>opened</th><th>played</th></tr>${r.funnel.byDay.map(d=>`<tr><td>#${d.day}</td><td>${d.shared}</td><td>${d.opened}</td><td>${d.played}</td></tr>`).join('')}</table>
+<div class="note">Once per event per page load. No challenge IDs or sender/recipient identities are collected, so these are independent counts, not a linked conversion rate. A copied link may never be sent. New events start from deployment; earlier days are not backfilled.</div>
 
 <h2>Profiles</h2>
 <div class="g">
@@ -1105,6 +1121,25 @@ first screen, not the game. If they start but don't finish, it's the game.</div>
 <div class="note">Cohorts exclude players too new to have had the chance:
 day-1 counts only those who first played before today, day-7 only those who
 first played 7+ days ago. Otherwise every newcomer silently drags the rate down.</div>`;
+}
+
+// Keep the owner key out of URLs, referrers, caches and dashboard HTML.
+// Browser: HTTP Basic (username "stats"). Scripts: Authorization: Bearer <key>.
+const STATS_HEADERS = { "Cache-Control": "no-store, private", "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY", "X-Robots-Tag": "noindex, nofollow",
+  "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" };
+async function statsAuthorized(req, key){
+  const auth = req.headers.get("Authorization") || "";
+  let candidate = "";
+  if(auth.startsWith("Bearer ")) candidate = auth.slice(7);
+  else if(auth.startsWith("Basic ")){
+    try { const decoded = atob(auth.slice(6)); if(decoded.startsWith("stats:")) candidate = decoded.slice(6); } catch(e){}
+  }
+  if(!candidate || candidate.length > 512) return false;
+  const hash = async s => new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
+  const [a,b] = await Promise.all([hash(candidate), hash(key)]);
+  let diff = 0; for(let i=0; i<a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
 }
 
 export default {
@@ -1145,7 +1180,7 @@ export default {
     // used to follow anyone. Each step fires at most once per page load.
     if(url.pathname === "/beacon" && req.method === "POST"){
       let b; try{ b = await req.json(); }catch(e){ b = {}; }
-      const step = String(b.step || "");
+      const step = b && typeof b.step === "string" ? b.step : "";
       if(!FUNNEL_STEPS.has(step)) return new Response(null, { status: 204, headers: cors });
       try{
         await env.DB.prepare("INSERT INTO funnel (day, step, n) VALUES (?1,?2,1) " +
@@ -1180,11 +1215,13 @@ export default {
     // Owner-only: aggregate business metrics. Disabled unless STATS_KEY is set,
     // so it can never be open by accident.
     if(url.pathname === "/stats"){
-      if(!env.STATS_KEY) return json({ error: "stats disabled: set the STATS_KEY secret" }, 404, cors);
-      if(url.searchParams.get("key") !== env.STATS_KEY) return json({ error: "nope" }, 403, cors);
+      if(!env.STATS_KEY) return json({ error: "stats disabled" }, 404, STATS_HEADERS);
+      if(req.method !== "GET") return json({ error: "method not allowed" }, 405, { ...STATS_HEADERS, Allow: "GET" });
+      if(!await statsAuthorized(req, env.STATS_KEY)) return json({ error: "owner authentication required" }, 401,
+        { ...STATS_HEADERS, "WWW-Authenticate": 'Basic realm="Yearworm stats", charset="UTF-8"' });
       const r = await retention(env);
-      if(url.searchParams.get("json") === "1") return json(r, 200, cors);
-      return new Response(retentionHTML(r), { status: 200, headers: { ...cors, "content-type": "text/html; charset=utf-8" } });
+      if(url.searchParams.get("json") === "1") return json(r, 200, STATS_HEADERS);
+      return new Response(retentionHTML(r), { status: 200, headers: { ...STATS_HEADERS, "content-type": "text/html; charset=utf-8" } });
     }
 
     if(url.pathname === "/daily" && req.method === "GET"){

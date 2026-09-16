@@ -25,7 +25,7 @@ function game(options = {}, source = html) {
     : options.navigator;
   const context = vm.createContext({
     navigator, crypto: webcrypto, console, URL, URLSearchParams,
-    location: { hash: '', pathname: '/', origin: 'http://localhost' },
+    location: { hash: options.hash || '', pathname: '/', origin: 'http://localhost' },
     history: { replaceState: noop },
     localStorage: {
       getItem(k) { if(options.blockStorage) throw Error('blocked'); return data.get(k) ?? null; },
@@ -39,7 +39,7 @@ function game(options = {}, source = html) {
     matchMedia: () => ({ matches: false, addEventListener: noop }),
     setTimeout: () => 0, clearTimeout: noop, setInterval: () => 0, clearInterval: noop,
     requestAnimationFrame: () => 0, cancelAnimationFrame: noop,
-    fetch: async () => ({ ok: false, status: 503, json: async () => ({}) }),
+    fetch: options.fetch || (async () => ({ ok: false, status: 503, json: async () => ({}) })),
   });
   context.window = context;
   const script = [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
@@ -47,7 +47,7 @@ function game(options = {}, source = html) {
   assert.match(script, /\nboot\(\);\s*$/);
   vm.runInContext(script.replace(/\nboot\(\);\s*$/, ''), context);
   // Keep actual boot, state, song selection and UI. Disable external refreshes.
-  vm.runInContext('afterLobby = () => {}; beacon = () => {}; boot();', context);
+  vm.runInContext('afterLobby = () => {}; ' + (options.analytics ? '' : 'beacon = () => {}; ') + 'boot();', context);
   return { data, nodes,
     run: code => vm.runInContext(code, context),
     json: code => JSON.parse(vm.runInContext(`JSON.stringify(${code})`, context)) };

@@ -1,7 +1,7 @@
 // Unit test for server/worker.js with an in-memory fake of the D1 subset used.
 // (SQL itself is exercised on deploy via a curl smoke test — this validates
 // routing, validation, one-shot upsert semantics and rank math.)
-const worker = (await import('/home/user/Timeline/server/worker.js')).default;
+const worker = (await import('../server/worker.js')).default;
 
 const rows = [];    // {day, device, nick, score, time_ms, created}
 const chals = [];   // {setkey, device, nick, score, time_ms, created}

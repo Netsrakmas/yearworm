@@ -1,18 +1,18 @@
 // Retention maths, checked against a hand-built history where the right answer
 // is known by construction. A silently wrong retention number is worse than no
 // number at all — it would drive the whole roadmap.
-const fs=require('fs'); const Database=require('better-sqlite3');
+const fs=require('node:fs'); const path=require('node:path');
+const {pathToFileURL}=require('node:url'); const {DatabaseSync: Database}=require('node:sqlite');
 (async()=>{
   const sqlite=new Database(':memory:');
-  let sc=fs.readFileSync('/home/user/Timeline/server/schema.sql','utf8')
-    .replace(/^\s*--.*$/gm,'').replace(/CREATE INDEX[\s\S]*?;/gi,'');
+  let sc=fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8');
   sqlite.exec(sc);
   const P=a=>a.length?[Object.fromEntries(a.map((v,i)=>[i+1,v===undefined?null:v]))]:[];
   const DB={prepare(sql){const st=sqlite.prepare(sql);let a=[];const api={bind(...x){a=x;return api;},
     first(){const r=st.get(...P(a));return r===undefined?null:r;},all(){return{results:st.all(...P(a))};},
     run(){const i=st.run(...P(a));return{meta:{changes:i.changes}};}};return api;}};
   globalThis.fetch=async()=>({status:201});
-  const w=(await import('/home/user/Timeline/server/worker.js')).default;
+  const w=(await import(pathToFileURL(path.join(__dirname,'worker.js')).href)).default;
   const env={DB,STATS_KEY:'s3cret',VAPID_PUBLIC:'',VAPID_PRIVATE:'',GOOGLE_CLIENT_ID:''};
   const ctx={waitUntil:p=>p};
 
@@ -29,8 +29,9 @@ const fs=require('fs'); const Database=require('better-sqlite3');
   play('late',    today-2);  play('late',   today-1);                         // d1 ✓; too new for d7
   play('newbie',  today);                                                     // too new for BOTH
 
-  const r=await (await w.fetch(new Request('https://x/stats?key=s3cret&json=1',
-    {headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.2'}}),env,ctx)).json();
+  const statsHeaders={'Authorization':'Bearer s3cret','CF-Connecting-IP':'2.2.2.2'};
+  const r=await (await w.fetch(new Request('https://x/stats?json=1',
+    {headers:statsHeaders}),env,ctx)).json();
   const d=r.daily;
   const eq=(got,want,what)=>{ if(got!==want) throw new Error(what+': expected '+want+', got '+got); };
 
@@ -59,8 +60,14 @@ const fs=require('fs'); const Database=require('better-sqlite3');
   const noKey=await w.fetch(new Request('https://x/stats',{headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.3'}}),{...env,STATS_KEY:''},ctx);
   if(noKey.status!==404) throw new Error('stats not disabled without a key: '+noKey.status);
   const wrong=await w.fetch(new Request('https://x/stats?key=guess',{headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.4'}}),env,ctx);
-  if(wrong.status!==403) throw new Error('wrong key was accepted: '+wrong.status);
-  console.log('gate: disabled without STATS_KEY, 403 on a wrong key OK');
+  if(wrong.status!==401) throw new Error('wrong key was accepted: '+wrong.status);
+  for(const headers of [{}, {'Authorization':'Bearer wrong'}, {'Authorization':'Basic !!!'},
+    {'Authorization':'Basic '+btoa('other:s3cret')}]){
+    const denied=await w.fetch(new Request('https://x/stats?key=s3cret&json=1',{headers}),env,ctx);
+    eq(denied.status,401,'unauthorized stats including legacy URL key');
+    eq(denied.headers.get('Cache-Control'),'no-store, private','denied response cache');
+  }
+  console.log('gate: disabled without STATS_KEY, requires Authorization, URL key rejected OK');
 
   // ---- funnel: landed → started → finished ----
   const beacon = async (step) => { const r = await w.fetch(new Request('https://x/beacon',
@@ -70,15 +77,23 @@ const fs=require('fs'); const Database=require('better-sqlite3');
   for(let i=0;i<10;i++){ await beacon('land'); await beacon('land-new'); }
   for(let i=0;i<6;i++){ await beacon('start'); await beacon('start-new'); }
   for(let i=0;i<3;i++){ await beacon('finish'); await beacon('finish-new'); }
+  for(let i=0;i<2;i++){ await beacon('second-start'); await beacon('second-start-new'); }
+  await beacon('challenge-shared'); await beacon('challenge-opened'); await beacon('challenge-played');
   // a junk step must be ignored, not stored
   await beacon('drop-database');
-  const f=(await (await w.fetch(new Request('https://x/stats?key=s3cret&json=1',
-    {headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.6'}}),env,ctx)).json()).funnel;
+  const f=(await (await w.fetch(new Request('https://x/stats?json=1',
+    {headers:statsHeaders}),env,ctx)).json()).funnel;
   eq(f.fresh.land, 10, 'first-timers landed');
   eq(f.fresh.start, 6, 'first-timers started');
   eq(f.fresh.finish, 3, 'first-timers finished');
   eq(f.fresh.startPct, 60, 'start rate');     // 6/10
   eq(f.fresh.finishPct, 50, 'finish rate');   // 3/6 — of those who STARTED
+  eq(f.available,true,'table available');
+  eq(f.fresh.secondStart,2,'second games'); eq(f.fresh.secondStartPct,33,'second game rate');
+  eq(f.all.secondStart,2,'all second games');
+  for(const k of ['shared','opened','played']) eq(f.challenges[k],1,'challenge '+k);
+  eq(f.byDay[0].secondStart,2,'per day second games');
+  for(const k of ['shared','opened','played']) eq(f.byDay[0][k],1,'per day challenge '+k);
   const junk = sqlite.prepare("SELECT COUNT(*) n FROM funnel WHERE step='drop-database'").get().n;
   eq(junk, 0, 'unknown step stored');
   console.log('funnel: '+f.fresh.land+' landed → '+f.fresh.startPct+'% started → '+f.fresh.finishPct+'% finished, junk rejected OK');
@@ -95,10 +110,29 @@ const fs=require('fs'); const Database=require('better-sqlite3');
   console.log('beacon: stores only (day, step, count) — no token or name can be kept OK');
 
   // and the HTML view renders with no personal data in it
-  const html=await (await w.fetch(new Request('https://x/stats?key=s3cret',{headers:{'Origin':'https://playyearworm.com','CF-Connecting-IP':'2.2.2.5'}}),env,ctx)).text();
+  const htmlResponse=await w.fetch(new Request('https://x/stats',{headers:{'Authorization':'Basic '+btoa('stats:s3cret')}}),env,ctx);
+  eq(htmlResponse.status,200,'browser Basic login');
+  eq(htmlResponse.headers.get('Cache-Control'),'no-store, private','dashboard cache');
+  eq(htmlResponse.headers.get('Referrer-Policy'),'no-referrer','dashboard referrer');
+  eq(htmlResponse.headers.get('Access-Control-Allow-Origin'),null,'dashboard must not expose CORS');
+  const html=await htmlResponse.text();
   if(!/came back/.test(html)||!/day 7/.test(html)) throw new Error('HTML view missing headline numbers');
   for(const leak of ['loyal','nextday','alsoonce','newbie'])
     if(html.includes(leak)) throw new Error('device token leaked into the HTML: '+leak);
   console.log('HTML view renders, no device tokens in it OK');
+  if(!html.includes('started a second game') || !html.includes('Shared challenges')) throw Error('new metrics missing from HTML');
+  if(html.includes('s3cret')) throw Error('dashboard leaks key');
+  const nullBeacon=await w.fetch(new Request('https://x/beacon',{method:'POST',body:'null'}),env,ctx);
+  eq(nullBeacon.status,204,'null payload ignored');
+  sqlite.exec("INSERT INTO friends(a,b,requester,status,created) VALUES ('friend-a','friend-b','friend-a','accepted',1),('friend-b','friend-c','friend-b','accepted',2),('friend-c','pending','friend-c','pending',3)");
+  const later=await (await w.fetch(new Request('https://x/stats?json=1',{headers:statsHeaders}),env,ctx)).json();
+  eq(later.profiles.withFriends,3,'count both ends of accepted friendships');
+  for(const leak of ['loyal','nextday','alsoonce','newbie','friend-a','friend-b','s3cret','Sam'])
+    if(JSON.stringify(later).includes(leak)) throw Error('JSON leaks private data');
+  sqlite.exec('DROP TABLE funnel');
+  const missing=await (await w.fetch(new Request('https://x/stats?json=1',{headers:statsHeaders}),env,ctx)).json();
+  eq(missing.funnel.available,false,'missing table must not silently look empty');
+  eq(await beacon('second-start'),204,'analytics migration outage must not affect players');
+  console.log('aggregate JSON, friendships, missing table and malformed beacon checks OK');
   console.log('STATS TEST PASS ✓');
 })().catch(e=>{console.error('STATS TEST FAIL ✗',e.message);process.exit(1);});
