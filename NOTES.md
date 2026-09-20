@@ -15,6 +15,21 @@ preview clips** instead of Spotify.
   rewrite is generation 2; v9–v41 predate the scheme): bugfix → patch
   (2.0.1), feature → minor (2.1.0).
 
+## 4.52.1 — consistent Daily puzzle day
+- Reproduced the Netherlands midnight report: playing #80 at 00:30 on
+  19 September saved a local date of 19 September; later that day the home
+  screen incorrectly called #81 Done while rankings correctly showed #81.
+- Use the UTC puzzle number for completion, replay protection, saving and
+  streaks. Keep the start number through midnight for songs, themes and score
+  submission. Board reads explicitly request the displayed puzzle number.
+- Name changes refresh completed current-puzzle results; partial attempts
+  are not prematurely submitted. Existing scores and lifetime ranks remain.
+- Added 11 regression scenarios using real client renderers and the Worker
+  with in-memory SQLite: Dutch midnight, UTC rollover, western time zones,
+  DST, streaks, one-shot protection, reloads, theme changes and board reads.
+  Daily-rank, interface, deck-region (including HEAD song parity), Worker,
+  statistics and funnel checks also pass. No live browser QA.
+
 ## 4.51.1 — styled challenge music selectors (private preview)
 - Match the Profile and challenge-start music selectors to the dark app
   controls: Rubik, rounded surface, 52px touch target, inset chevron, and a

@@ -653,7 +653,7 @@
 
 <script>
 "use strict";
-const BUILD = "4.52.0";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
+const BUILD = "4.52.1";   // semver; keep in sync with CACHE_NAME in sw.js; shown in the footer
 // geometric ✕ — a font glyph sits off-center in its em box on some devices
 const XICON = '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="display:block"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 
@@ -5599,9 +5599,9 @@ function weekTheme(dNum){
   if(wk < THEMES_FROM_WEEK) return null;
   return WEEK_THEMES[wk % WEEK_THEMES.length];
 }
-function dailySongs(n){
-  const th = weekTheme(dailyNumber());
-  return seededSongs(dailyNumber() * 2654435761, n, th && (s => s.year >= th.min && s.year <= th.max));
+function dailySongs(n, day = dailyNumber()){
+  const th = weekTheme(day);
+  return seededSongs(day * 2654435761, n, th && (s => s.year >= th.min && s.year <= th.max));
 }
 function loadDaily(){
   let d = {};
@@ -5631,9 +5631,9 @@ function saveDaily(d){
 }
 function dailyPlayedToday(){
   const d = loadDaily();
-  // the puzzle number rolls at UTC midnight but `last` is a LOCAL date — check
-  // both, or players west of UTC could replay the same seeded set with answers
-  return d.num === dailyNumber() || d.last === localDay(0);
+  // Songs and rankings roll at UTC midnight. A local date can span two puzzles:
+  // only the saved puzzle number can lock or mark the current Daily as played.
+  return d.num === dailyNumber();
 }
 /* every seeded song-set is ONE-SHOT per device — replaying with known answers
    is the real cheat (grinding fresh sets is just picking your proudest score) */
@@ -5657,13 +5657,14 @@ function recordRunProgress(){
   const me = S.players && S.players[0]; if(!me) return;
   const partial = (me.tries||0) < RUN_LEN;
   if(S.mode === "daily"){
-    const d = loadDaily(), today = localDay(0);
-    if(d.last === today && !d.p) return;   // already finished today — never downgrade
-    // streak is computed on the first write of the local day, then carried
-    const streak = (d.last === today) ? (d.streak||1) : (d.last === localDay(-1)) ? (d.streak||0)+1 : 1;
-    saveDaily({ last: today, streak, maxStreak: Math.max(streak, d.maxStreak||0),
+    const d = loadDaily(), day = S.dailyNum || dailyNumber();
+    if(d.num === day && !d.p) return;   // already finished this puzzle — never downgrade
+    // Count consecutive puzzles, even when a run crosses local or UTC midnight.
+    // `last` remains local history for older clients; it does not identify a puzzle.
+    const streak = (d.num === day) ? (d.streak||1) : (d.num === day-1) ? (d.streak||0)+1 : 1;
+    saveDaily({ last: localDay(0), streak, maxStreak: Math.max(streak, d.maxStreak||0),
                 best: Math.max(me.hits||0, d.best||0), score: me.hits||0,
-                results: (me.results||[]).slice(), num: S.dailyNum || dailyNumber(),
+                results: (me.results||[]).slice(), num: day,
                 idx: (S.runCards && S.runCards.length>=2) ? S.runCards.slice() : null,
                 timeMs: me.timeMs||0, ...(partial ? { p:1 } : {}) });
   } else if(S.mode === "challenge" && S.challenge && S.challenge.idx){
@@ -5744,11 +5745,12 @@ async function lbSubmitDaily(score, timeMs, day){
     return r.ok ? await r.json() : null;
   }catch(e){ return null; }
 }
-async function lbFetchDaily(){
+async function lbFetchDaily(day = dailyNumber()){
   if(!LB.url) return null;
   // POST, not GET: the device token is a bearer credential — keep it out of URL/proxy logs
+  // Name the displayed puzzle so a request crossing UTC midnight reads that board.
   try{ const r = await fetch(LB.url+"/daily", { method:"POST", headers:{ "content-type":"application/json" },
-    body: JSON.stringify({ read:1, device: deviceId() }) }); return r.ok ? await r.json() : null; }catch(e){ return null; }
+    body: JSON.stringify({ read:1, day, device: deviceId() }) }); return r.ok ? await r.json() : null; }catch(e){ return null; }
 }
 function lbLineHTML(b, compact=false){
   if(!b || !b.me) return `<span class="muted">leaderboard unavailable</span>`;
@@ -5783,7 +5785,7 @@ function saveNick(v){
     else claimHandle(clean);
   }
   const d = loadDaily();
-  if(d.last === localDay(0)) lbSubmitDaily(d.score||0, d.timeMs||0, d.num).then(b=>{
+  if(dailyPlayedToday() && !d.p) lbSubmitDaily(d.score||0, d.timeMs||0, d.num).then(b=>{
     const el = document.getElementById("lbline"); if(el && b) el.innerHTML = lbLineHTML(b);
   });
   // refresh the name on recent set boards too (server keeps the score, takes the nick)
@@ -9320,7 +9322,7 @@ async function startDaily(){
                                 // must not book the score on the next day's puzzle
   stashRoster();
   S.players = [{ name:"You", timeline:[] }];
-  const songs = dailySongs(RUN_LEN + 5);   // anchor + run + spares for dead previews
+  const songs = dailySongs(RUN_LEN + 5, S.dailyNum);   // anchor + run + spares for dead previews
   unlockAudio();   // prime mobile audio within this tap
   S.deck = [];
   S.deckSeen = new Set();

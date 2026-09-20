@@ -36,6 +36,7 @@ jobs:
           node test/funnel.js
           node test/interface.js
           node test/daily-rank.js
+          node test/daily-day.js
           node test/deck-region.js
 
       - name: Require the owner dashboard secret
